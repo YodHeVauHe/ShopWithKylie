@@ -9,6 +9,7 @@ import CartModal from './components/CartModal';
 import LoginModal from './components/LoginModal';
 import { Product, ViewState, ToastMessage, ToastType, CartItem } from './types';
 import { SALES_DATA, CATEGORY_DATA } from './constants';
+import { CheckCircle, XCircle, Info, X, Trash2, AlertTriangle } from 'lucide-react';
 
 const App: React.FC = () => {
   // App Mode State: 'customer' or 'admin'
@@ -236,7 +237,11 @@ const App: React.FC = () => {
   };
 
   const handleRemoveFromCart = (id: string) => {
+    const item = cart.find(item => item.id === id);
     setCart(prev => prev.filter(item => item.id !== id));
+    if (item) {
+      addToast(`${item.name} removed from cart`, ToastType.ERROR);
+    }
   };
 
   const handleUpdateQuantity = (id: string, quantity: number) => {
@@ -414,45 +419,78 @@ const App: React.FC = () => {
 };
 
 // Toast Container Helper
-const ToastContainer = ({ toasts }: { toasts: ToastMessage[] }) => (
-  <div className="fixed bottom-6 right-6 z-[70] flex flex-col gap-3 pointer-events-none">
-    {toasts.map(toast => (
-      <div
-        key={toast.id}
-        className={`pointer-events-auto flex flex-col w-full max-w-sm p-4 rounded-xl shadow-2xl text-white transform transition-all duration-300 ease-in-out translate-y-0 opacity-100 backdrop-blur-xl border border-white/10 ${
-          toast.type === ToastType.SUCCESS ? 'bg-emerald-900/80 text-emerald-100' :
-          toast.type === ToastType.ERROR ? 'bg-rose-900/80 text-rose-100' : 'bg-neutral-800/80 text-neutral-200'
-        }`}
-      >
-        <div className="text-sm font-semibold tracking-wide mb-3">{toast.message}</div>
-        
-        {(toast.action || toast.dismiss) && (
-          <div className="flex gap-2 mt-2">
-            {toast.dismiss && (
-              <button
-                onClick={toast.dismiss.onClick}
-                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-              >
-                {toast.dismiss.label}
-              </button>
-            )}
-            {toast.action && (
-              <button
-                onClick={toast.action.onClick}
-                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-lg transition-colors ${
-                  toast.action.variant === 'danger' 
-                    ? 'bg-rose-500 hover:bg-rose-600 text-white' 
-                    : 'bg-white hover:bg-neutral-200 text-black'
-                }`}
-              >
-                {toast.action.label}
-              </button>
+const ToastContainer = ({ toasts }: { toasts: ToastMessage[] }) => {
+  const getIcon = (type: ToastType) => {
+    switch (type) {
+      case ToastType.SUCCESS:
+        return <CheckCircle className="w-5 h-5 text-emerald-300" />;
+      case ToastType.ERROR:
+        return <XCircle className="w-5 h-5 text-rose-300" />;
+      case ToastType.INFO:
+        return <Info className="w-5 h-5 text-blue-300" />;
+      default:
+        return <Info className="w-5 h-5 text-neutral-300" />;
+    }
+  };
+
+  const getActionIcon = (label: string) => {
+    if (label.toLowerCase().includes('delete') || label.toLowerCase().includes('remove')) {
+      return <Trash2 className="w-3 h-3" />;
+    }
+    return null;
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-[70] flex flex-col gap-3 pointer-events-none">
+      {toasts.map(toast => (
+        <div
+          key={toast.id}
+          className={`pointer-events-auto flex items-center gap-3 w-full max-w-sm p-4 rounded-xl shadow-2xl text-white transform transition-all duration-300 ease-in-out translate-y-0 opacity-100 backdrop-blur-xl border border-white/10 ${
+            toast.type === ToastType.SUCCESS ? 'bg-emerald-900/90 text-emerald-100 border-emerald-500/20' :
+            toast.type === ToastType.ERROR ? 'bg-rose-900/90 text-rose-100 border-rose-500/20' : 'bg-neutral-800/90 text-neutral-200 border-neutral-500/20'
+          }`}
+        >
+          {/* Icon */}
+          <div className="flex-shrink-0">
+            {getIcon(toast.type)}
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium leading-tight">{toast.message}</div>
+            
+            {/* Action Buttons */}
+            {(toast.action || toast.dismiss) && (
+              <div className="flex gap-2 mt-3">
+                {toast.dismiss && (
+                  <button
+                    onClick={toast.dismiss.onClick}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-200"
+                  >
+                    <X className="w-3 h-3" />
+                    {toast.dismiss.label}
+                  </button>
+                )}
+                {toast.action && (
+                  <button
+                    onClick={toast.action.onClick}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+                      toast.action.variant === 'danger' 
+                        ? 'bg-rose-500/80 hover:bg-rose-500 text-white border border-rose-400/30' 
+                        : 'bg-white/90 hover:bg-white text-black border border-white/20'
+                    }`}
+                  >
+                    {getActionIcon(toast.action.label)}
+                    {toast.action.label}
+                  </button>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
-    ))}
-  </div>
-);
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default App;

@@ -22,7 +22,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
       <div className="absolute inset-y-0 right-0 max-w-md w-full flex">
         <div className="flex-1 flex flex-col bg-[#0f0f0f] shadow-2xl animate-slide-in-right border-l border-white/5">
 
-          <div className="flex items-center justify-between px-6 py-6 border-b border-white/5 bg-neutral-900/50 backdrop-blur-xl">
+          <div className="flex items-center justify-between px-4 py-4 border-b border-white/5 bg-neutral-900/50 backdrop-blur-xl">
             <h2 className="text-xl font-bold text-white tracking-tight">Your Cart <span className="text-violet-500">({cartItems.length})</span></h2>
             <button type="button" className="text-neutral-500 hover:text-white transition-colors" onClick={onClose}>
               <span className="sr-only">Close panel</span>
@@ -32,7 +32,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="flex-1 overflow-y-auto px-4 py-4">
             {cartItems.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center">
                 <div className="w-20 h-20 bg-neutral-900 rounded-full flex items-center justify-center mb-6">
@@ -50,9 +50,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
                 </button>
               </div>
             ) : (
-              <ul className="space-y-6">
+              <ul className="space-y-4">
                 {cartItems.map((item) => (
-                  <li key={item.id} className="flex p-4 bg-neutral-900/50 rounded-2xl border border-white/5">
+                  <li key={item.id} className="flex p-3 bg-neutral-900/50 rounded-2xl border border-white/5">
                     <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-white/5 bg-neutral-800">
                       <img
                         src={item.image}
@@ -102,7 +102,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
           </div>
 
           {cartItems.length > 0 && (
-            <div className="border-t border-white/5 px-6 py-6 bg-neutral-900/80 backdrop-blur-xl">
+            <div className="border-t border-white/5 px-4 py-4 bg-neutral-900/80 backdrop-blur-xl">
               <div className="flex justify-between text-base font-medium text-neutral-400 mb-2">
                 <p>Subtotal</p>
                 <p className="text-white font-bold">UGX {total.toLocaleString()}</p>
