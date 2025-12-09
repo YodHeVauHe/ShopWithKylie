@@ -7,6 +7,10 @@ export interface Product {
   image: string;
   description: string;
   status: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  targetAudience?: 'Men' | 'Women' | 'Kids' | 'Unisex';
+  images?: string[];
+  sizes?: string[];
+  colors?: string[];
 }
 
 export interface CartItem extends Product {
@@ -37,4 +41,13 @@ export interface ToastMessage {
   id: string;
   message: string;
   type: ToastType;
+  action?: {
+    label: string;
+    onClick: () => void;
+    variant?: 'primary' | 'danger';
+  };
+  dismiss?: {
+    label: string;
+    onClick: () => void;
+  };
 }

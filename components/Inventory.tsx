@@ -27,11 +27,11 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onEditPro
           <h2 className="text-3xl font-bold text-white tracking-tight">Inventory</h2>
           <p className="text-neutral-400 mt-1">Manage stock levels and product details.</p>
         </div>
-        <button 
+        <button
           onClick={onAddProduct}
-          className="group inline-flex items-center px-5 py-2.5 bg-white text-black text-sm font-semibold rounded-xl hover:bg-neutral-200 transition-all shadow-lg shadow-white/5"
+          className="group inline-flex items-center px-4 py-2 bg-white text-black text-xs font-semibold rounded-lg hover:bg-neutral-200 transition-all shadow-lg shadow-white/5"
         >
-          <svg className="w-5 h-5 mr-2 text-neutral-600 group-hover:text-black transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 mr-2 text-neutral-600 group-hover:text-black transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
           </svg>
           Add Product
@@ -40,36 +40,35 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onEditPro
 
       {/* Filters and Search - Styled to match Shop */}
       <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/10 p-2 rounded-2xl flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
+        <div className="relative md:max-w-md">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
           <input
             type="text"
-            className="block w-full pl-11 pr-3 py-3 border-none rounded-xl leading-5 bg-black/20 text-white placeholder-neutral-500 focus:outline-none focus:bg-black/40 sm:text-sm transition-colors"
+            className="block w-full pl-10 pr-3 py-2 border-none rounded-lg text-sm leading-5 bg-black/20 text-white placeholder-neutral-500 focus:outline-none focus:bg-black/40 transition-colors"
             placeholder="Search products..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
+
         {/* Category Tabs inside Filter Bar */}
         <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar md:border-l md:border-white/10 md:pl-2">
-           {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setFilterCategory(cat)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
-                  filterCategory === cat
-                    ? 'bg-white text-black'
-                    : 'text-neutral-400 hover:text-white hover:bg-white/5'
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setFilterCategory(cat)}
+              className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${filterCategory === cat
+                  ? 'bg-white text-black'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
                 }`}
-              >
-                {cat}
-              </button>
-            ))}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -107,7 +106,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onEditPro
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-300 font-mono">
-                    ${product.price.toFixed(2)}
+                    UGX {product.price.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-300">
                     <span className={`${product.stock < 15 ? 'text-amber-400 font-bold' : ''}`}>
@@ -118,13 +117,13 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onEditPro
                     <StatusBadge status={product.status} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button 
+                    <button
                       onClick={() => onEditProduct(product)}
                       className="text-violet-400 hover:text-violet-300 mr-4 transition-colors"
                     >
                       Edit
                     </button>
-                    <button 
+                    <button
                       onClick={() => onDeleteProduct(product.id)}
                       className="text-neutral-500 hover:text-rose-400 transition-colors"
                     >
@@ -133,7 +132,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onEditPro
                   </td>
                 </tr>
               ))}
-              
+
               {filteredProducts.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-neutral-500">
@@ -154,7 +153,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onEditPro
 
 const StatusBadge = ({ status }: { status: string }) => {
   let classes = "";
-  switch(status) {
+  switch (status) {
     case 'In Stock': classes = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'; break;
     case 'Low Stock': classes = 'bg-amber-500/10 text-amber-400 border-amber-500/20'; break;
     case 'Out of Stock': classes = 'bg-rose-500/10 text-rose-400 border-rose-500/20'; break;

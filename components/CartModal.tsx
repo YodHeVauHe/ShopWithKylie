@@ -6,10 +6,11 @@ interface CartModalProps {
   onClose: () => void;
   cartItems: CartItem[];
   onRemoveItem: (id: string) => void;
+  onUpdateQuantity: (id: string, quantity: number) => void;
   onCheckout: () => void;
 }
 
-const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRemoveItem, onCheckout }) => {
+const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRemoveItem, onUpdateQuantity, onCheckout }) => {
   if (!isOpen) return null;
 
   const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -17,10 +18,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-      
+
       <div className="absolute inset-y-0 right-0 max-w-md w-full flex">
         <div className="flex-1 flex flex-col bg-[#0f0f0f] shadow-2xl animate-slide-in-right border-l border-white/5">
-          
+
           <div className="flex items-center justify-between px-6 py-6 border-b border-white/5 bg-neutral-900/50 backdrop-blur-xl">
             <h2 className="text-xl font-bold text-white tracking-tight">Your Cart <span className="text-violet-500">({cartItems.length})</span></h2>
             <button type="button" className="text-neutral-500 hover:text-white transition-colors" onClick={onClose}>
@@ -41,7 +42,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
                 </div>
                 <h3 className="text-white font-bold text-lg mb-2">Cart is empty</h3>
                 <p className="text-neutral-500 text-sm max-w-xs">Looks like you haven't found your perfect pair yet.</p>
-                <button 
+                <button
                   onClick={onClose}
                   className="mt-8 px-6 py-3 bg-white text-black font-bold text-sm rounded-full hover:bg-neutral-200 transition-colors"
                 >
@@ -64,14 +65,25 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
                       <div>
                         <div className="flex justify-between text-base font-bold text-white">
                           <h3>{item.name}</h3>
-                          <p className="ml-4 font-mono">${(item.price * item.quantity).toFixed(2)}</p>
+                          <p className="ml-4 font-mono">UGX {(item.price * item.quantity).toLocaleString()}</p>
                         </div>
                         <p className="mt-1 text-xs text-neutral-500 uppercase tracking-wide">{item.category}</p>
                       </div>
                       <div className="flex items-center justify-between text-sm mt-2">
                         <div className="flex items-center bg-black/30 rounded-lg px-2 py-1">
-                            <span className="text-neutral-400 text-xs mr-2">Qty:</span>
-                            <span className="text-white font-medium">{item.quantity}</span>
+                          <button
+                            onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                            className="text-neutral-400 hover:text-white px-2 transition-colors"
+                          >
+                            -
+                          </button>
+                          <span className="text-white font-medium mx-2">{item.quantity}</span>
+                          <button
+                            onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                            className="text-neutral-400 hover:text-white px-2 transition-colors"
+                          >
+                            +
+                          </button>
                         </div>
 
                         <button
@@ -93,7 +105,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
             <div className="border-t border-white/5 px-6 py-6 bg-neutral-900/80 backdrop-blur-xl">
               <div className="flex justify-between text-base font-medium text-neutral-400 mb-2">
                 <p>Subtotal</p>
-                <p className="text-white font-bold">${total.toFixed(2)}</p>
+                <p className="text-white font-bold">UGX {total.toLocaleString()}</p>
               </div>
               <div className="flex justify-between text-base font-medium text-neutral-400 mb-6">
                 <p>Shipping</p>

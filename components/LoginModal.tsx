@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '../services/supabase';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -7,33 +8,44 @@ interface LoginModalProps {
 }
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    // Hardcoded credentials for demonstration
-    // Using 'admin' / 'admin' as requested for temporary access
-    if (username === 'admin' && password === 'admin') {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
       onLogin();
-      setUsername('');
+      setEmail('');
       setPassword('');
-    } else {
-      setError('Invalid username or password');
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        
+
         {/* Background overlay */}
-        <div 
+        <div
           className="fixed inset-0 bg-black/90 backdrop-blur-sm transition-opacity"
           onClick={onClose}
         ></div>
@@ -51,17 +63,17 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label htmlFor="username" className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
-                  Username
+                <label htmlFor="email" className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                  Email
                 </label>
                 <input
-                  type="text"
-                  id="username"
+                  type="email"
+                  id="email"
                   required
                   className="block w-full px-4 py-3 bg-neutral-900/50 border border-white/5 rounded-xl text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder-neutral-600"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@example.com"
                 />
               </div>
 
@@ -88,15 +100,15 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
 
               <button
                 type="submit"
-                className="w-full flex justify-center py-3.5 px-4 rounded-xl text-sm font-bold text-white bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 transition-all uppercase tracking-wide"
+                disabled={loading}
+                className="w-full flex justify-center py-2.5 px-4 rounded-lg text-xs font-bold text-white bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 transition-all uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Enter Dashboard
+                {loading ? 'Signing in...' : 'Enter Dashboard'}
               </button>
             </form>
 
-             <div className="mt-8 pt-6 border-t border-white/5 text-center">
-              <p className="text-xs text-neutral-500 mb-4">Demo Credentials: admin / admin</p>
-              <button 
+            <div className="mt-8 pt-6 border-t border-white/5 text-center">
+              <button
                 onClick={onClose}
                 className="text-xs font-bold text-neutral-400 hover:text-white uppercase tracking-wider transition-colors"
               >
