@@ -112,17 +112,21 @@ const Shop: React.FC<ShopProps> = ({ products, onAddToCart }) => {
             >
               {/* Image Area */}
               <div className="aspect-square overflow-hidden bg-neutral-800/50 relative flex-shrink-0">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-in-out"
-                  style={{
-                    objectPosition: 'center',
-                    maxHeight: '100%',
-                    maxWidth: '100%'
-                  }}
-                  loading="lazy"
-                />
+                <div className="w-full h-full flex items-center justify-center bg-white">
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="max-w-full max-h-full object-contain transform group-hover:scale-105 transition-transform duration-700 ease-in-out"
+                    style={{
+                      objectPosition: 'center',
+                      maxHeight: '100%',
+                      maxWidth: '100%',
+                      width: 'auto',
+                      height: 'auto'
+                    }}
+                    loading="lazy"
+                  />
+                </div>
 
                 {/* Overlay Gradient */}
                 <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -151,10 +155,10 @@ const Shop: React.FC<ShopProps> = ({ products, onAddToCart }) => {
                 </div>
                 
                 {/* Price Tag with Icon */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 bg-violet-500/20 border border-violet-500/30 px-2 py-1 rounded-full">
-                    <Tag className="w-3 h-3 text-violet-400" />
-                    <span className="text-xs font-bold text-violet-300">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 bg-violet-500/20 border border-violet-500/30 px-2 py-1 rounded-full whitespace-nowrap">
+                    <Tag className="w-3 h-3 text-violet-400 flex-shrink-0" />
+                    <span className="text-xs font-bold text-violet-300 truncate">
                       UGX {product.price.toLocaleString()}
                     </span>
                   </div>
