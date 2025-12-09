@@ -1,0 +1,125 @@
+import React from 'react';
+import { CartItem } from '../types';
+
+interface CartModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  cartItems: CartItem[];
+  onRemoveItem: (id: string) => void;
+  onCheckout: () => void;
+}
+
+const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRemoveItem, onCheckout }) => {
+  if (!isOpen) return null;
+
+  const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+      
+      <div className="absolute inset-y-0 right-0 max-w-md w-full flex">
+        <div className="flex-1 flex flex-col bg-[#0f0f0f] shadow-2xl animate-slide-in-right border-l border-white/5">
+          
+          <div className="flex items-center justify-between px-6 py-6 border-b border-white/5 bg-neutral-900/50 backdrop-blur-xl">
+            <h2 className="text-xl font-bold text-white tracking-tight">Your Cart <span className="text-violet-500">({cartItems.length})</span></h2>
+            <button type="button" className="text-neutral-500 hover:text-white transition-colors" onClick={onClose}>
+              <span className="sr-only">Close panel</span>
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            {cartItems.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center">
+                <div className="w-20 h-20 bg-neutral-900 rounded-full flex items-center justify-center mb-6">
+                  <svg className="h-8 w-8 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                </div>
+                <h3 className="text-white font-bold text-lg mb-2">Cart is empty</h3>
+                <p className="text-neutral-500 text-sm max-w-xs">Looks like you haven't found your perfect pair yet.</p>
+                <button 
+                  onClick={onClose}
+                  className="mt-8 px-6 py-3 bg-white text-black font-bold text-sm rounded-full hover:bg-neutral-200 transition-colors"
+                >
+                  Start Shopping
+                </button>
+              </div>
+            ) : (
+              <ul className="space-y-6">
+                {cartItems.map((item) => (
+                  <li key={item.id} className="flex p-4 bg-neutral-900/50 rounded-2xl border border-white/5">
+                    <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-white/5 bg-neutral-800">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="h-full w-full object-cover object-center"
+                      />
+                    </div>
+
+                    <div className="ml-4 flex flex-1 flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between text-base font-bold text-white">
+                          <h3>{item.name}</h3>
+                          <p className="ml-4 font-mono">${(item.price * item.quantity).toFixed(2)}</p>
+                        </div>
+                        <p className="mt-1 text-xs text-neutral-500 uppercase tracking-wide">{item.category}</p>
+                      </div>
+                      <div className="flex items-center justify-between text-sm mt-2">
+                        <div className="flex items-center bg-black/30 rounded-lg px-2 py-1">
+                            <span className="text-neutral-400 text-xs mr-2">Qty:</span>
+                            <span className="text-white font-medium">{item.quantity}</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => onRemoveItem(item.id)}
+                          className="font-medium text-xs text-neutral-500 hover:text-rose-400 transition-colors uppercase tracking-wide"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {cartItems.length > 0 && (
+            <div className="border-t border-white/5 px-6 py-6 bg-neutral-900/80 backdrop-blur-xl">
+              <div className="flex justify-between text-base font-medium text-neutral-400 mb-2">
+                <p>Subtotal</p>
+                <p className="text-white font-bold">${total.toFixed(2)}</p>
+              </div>
+              <div className="flex justify-between text-base font-medium text-neutral-400 mb-6">
+                <p>Shipping</p>
+                <p className="text-white">Calculated at checkout</p>
+              </div>
+              <button
+                onClick={onCheckout}
+                className="w-full flex items-center justify-center rounded-xl bg-violet-600 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-violet-900/20 hover:bg-violet-500 transition-all uppercase tracking-wide"
+              >
+                Checkout Now
+              </button>
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  className="text-xs font-bold text-neutral-500 hover:text-white transition-colors uppercase tracking-wide"
+                  onClick={onClose}
+                >
+                  Continue Shopping
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CartModal;
