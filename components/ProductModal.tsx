@@ -130,6 +130,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
     }
   }, [initialProduct, isOpen]);
 
+  // Debug log for images array changes
+  useEffect(() => {
+    console.log('Images array updated:', formData.images);
+  }, [formData.images]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -168,12 +173,18 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
 
       setFormData(prev => {
         const newImages = [...(prev.images || []), publicUrl];
+        console.log('Updated images array:', newImages); // Debug log
         return {
           ...prev,
           images: newImages,
           image: prev.image || publicUrl // Set main image if not set
         };
       });
+
+      // Clear the file input to allow uploading the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (error) {
       alert('Error uploading image!');
       console.error(error);
