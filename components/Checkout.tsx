@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CartItem, UserProfile } from '../types';
+import { CartItem, UserProfile, DiscountCode } from '../types';
 import { supabase } from '../services/supabase';
 import { Loader2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 
@@ -9,11 +9,16 @@ interface CheckoutProps {
     onBack: () => void;
     onSuccess: (orderId: string) => void;
     user: UserProfile | null;
+    discountCode?: DiscountCode | null;
 }
 
-const Checkout: React.FC<CheckoutProps> = ({ cart, total, onBack, onSuccess, user }) => {
+const Checkout: React.FC<CheckoutProps> = ({ cart, total, onBack, onSuccess, user, discountCode }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    
+    // Calculate discount
+    const discountAmount = discountCode ? Math.round(total * (discountCode.discount_percentage / 100)) : 0;
+    const finalTotal = total - discountAmount;
     const [formData, setFormData] = useState({
         email: user?.email || '',
         fullName: user?.full_name || '',
@@ -91,7 +96,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, total, onBack, onSuccess, use
                 .from('orders')
                 .insert([{
                     user_id: userId,
-                    total_amount: total,
+                    total_amount: finalTotal,
                     status: 'pending',
                     shipping_details: {
                         address: formData.address,
@@ -119,6 +124,28 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, total, onBack, onSuccess, use
                 .insert(orderItems);
 
             if (itemsError) throw itemsError;
+
+            // 4. Track discount usage if a discount was applied
+            if (discountCode) {
+                try {
+                    // Use REST API to increment discount usage
+                    const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+                    const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
+                    
+                    await fetch(`${supabaseUrl}/rest/v1/rpc/increment_discount_usage`, {
+                        method: 'POST',
+                        headers: {
+                            'apikey': anonKey,
+                            'Authorization': `Bearer ${anonKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ code_id: discountCode.id })
+                    });
+                } catch (discountError) {
+                    console.error('Failed to track discount usage:', discountError);
+                    // Don't fail the order if discount tracking fails
+                }
+            }
 
             onSuccess(orderData.id);
 

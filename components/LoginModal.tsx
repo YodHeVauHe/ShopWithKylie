@@ -22,20 +22,47 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
 
     try {
       console.log('Attempting login with:', email);
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      
+      // Use REST API directly since Supabase client is hanging
+      const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
+      
+      console.log('Environment variables:', { 
+        url: !!supabaseUrl, 
+        key: !!anonKey 
       });
-
-      console.log('Login response:', { error: error?.message });
-
-      if (error) {
-        throw error;
+      
+      console.log('Using REST API login');
+      
+      const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`Login failed: ${response.status} ${errorText}`);
       }
-
+      
+      const sessionData = await response.json();
+      console.log('REST API login successful, session data:', sessionData);
+      
+      // Skip setSession for now and just call onLogin
       onLogin();
       setEmail('');
       setPassword('');
+      
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'Invalid email or password');

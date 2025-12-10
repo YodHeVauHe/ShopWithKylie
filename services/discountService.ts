@@ -57,12 +57,25 @@ export class DiscountService {
   // Get all discount codes
   static async getDiscountCodes(): Promise<{ success: boolean; data?: DiscountCode[]; error?: string }> {
     try {
-      const { data, error } = await supabase
-        .from('discount_codes')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Use REST API directly
+      const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${supabaseUrl}/rest/v1/discount_codes?order=created_at.desc`, {
+        method: 'GET',
+        headers: {
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
       return { success: true, data };
     } catch (error) {
       console.error('Error fetching discount codes:', error);
@@ -78,14 +91,28 @@ export class DiscountService {
     error?: string 
   }> {
     try {
-      const { data: discountCode, error } = await supabase
-        .from('discount_codes')
-        .select('*')
-        .eq('code', code.toUpperCase())
-        .eq('is_active', true)
-        .single();
+      // Use REST API directly
+      const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${supabaseUrl}/rest/v1/discount_codes?code=eq.${code.toUpperCase()}&is_active=eq.true&limit=1`, {
+        method: 'GET',
+        headers: {
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-      if (error || !discountCode) {
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const discountCodes = await response.json();
+      const discountCode = discountCodes[0];
+
+      if (!discountCode) {
         return { success: true, valid: false, error: 'Invalid discount code' };
       }
 

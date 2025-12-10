@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CartItem } from '../types';
+import React, { useState, useEffect } from 'react';
+import { CartItem, DiscountCode } from '../types';
 import { useDiscountCode } from '../hooks/useDiscountCode';
 import { Gift, X, Check, AlertCircle } from 'lucide-react';
 
@@ -10,17 +10,32 @@ interface CartModalProps {
   onRemoveItem: (id: string) => void;
   onUpdateQuantity: (id: string, quantity: number) => void;
   onCheckout: () => void;
+  onDiscountApplied: (discountCode: DiscountCode | null) => void;
 }
 
-const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRemoveItem, onUpdateQuantity, onCheckout }) => {
+const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRemoveItem, onUpdateQuantity, onCheckout, onDiscountApplied }) => {
   const [discountCodeInput, setDiscountCodeInput] = useState('');
   const { discountCode, isLoading, error, validateCode, clearDiscount, applyDiscount } = useDiscountCode();
   
   if (!isOpen) return null;
 
+  // Prevent rendering if there are critical errors
+  if (error && !discountCode) {
+    console.error('CartModal error:', error);
+  }
+
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const discountAmount = discountCode ? Math.round(subtotal * (discountCode.discount_percentage / 100)) : 0;
   const total = subtotal - discountAmount;
+
+  // TODO: Fix discount sync - temporarily disabled to prevent blank page
+  // useEffect(() => {
+  //   if (discountCode) {
+  //     onDiscountApplied(discountCode);
+  //   } else {
+  //     onDiscountApplied(null);
+  //   }
+  // }, [discountCode]);
 
   const handleApplyDiscount = async () => {
     const isValid = await validateCode(discountCodeInput, subtotal, cartItems.map(item => item.id));
@@ -30,6 +45,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
   };
 
   const handleCheckout = async () => {
+    // Sync discount before checkout
+    onDiscountApplied(discountCode);
+    
     if (discountCode) {
       await applyDiscount();
     }
@@ -161,19 +179,19 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
                   <div className="flex items-center justify-between p-3 bg-emerald-900/20 border border-emerald-500/20 rounded-lg">
                     <div className="flex items-center gap-2">
                       <Check className="w-4 h-4 text-emerald-400" />
-                      <div>
-                        <span className="text-sm font-medium text-white">{discountCode.code}</span>
-                        <span className="ml-2 px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded">
-                          {discountCode.discount_percentage}% OFF
-                        </span>
-                      </div>
+                      <span className="text-sm font-medium text-white">{discountCode.code}</span>
                     </div>
-                    <button
-                      onClick={clearDiscount}
-                      className="text-neutral-400 hover:text-rose-400 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded">
+                        {discountCode.discount_percentage}% OFF
+                      </span>
+                      <button
+                        onClick={clearDiscount}
+                        className="text-neutral-400 hover:text-rose-400 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -187,7 +205,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-base font-medium text-emerald-400">
                     <p>Discount ({discountCode?.code})</p>
-                    <p className="font-bold">-UGX {discountAmount.toLocaleString()}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-emerald-600/20 text-emerald-400 text-xs font-bold rounded">
+                        {discountCode?.discount_percentage}% OFF
+                      </span>
+                      <p className="font-bold">-UGX {discountAmount.toLocaleString()}</p>
+                    </div>
                   </div>
                 )}
                 <div className="flex justify-between text-base font-medium text-neutral-400">

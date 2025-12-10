@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Product, DiscountCode } from '../types';
-import { Tag, Percent, Check, X, Sparkles, AlertCircle, CheckSquare, Square, MinusSquare, Gift, Clock, Users, Trash2, Edit } from 'lucide-react';
+import { Tag, Percent, Check, X, Sparkles, AlertCircle, CheckSquare, Square, MinusSquare, Gift, Clock, Users, Trash2, Edit, Copy } from 'lucide-react';
 import { DiscountService } from '../services/discountService';
 
 interface DiscountPanelProps {
@@ -203,6 +203,15 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
             ...prev,
             code: DiscountService.generateRandomCode(8)
         }));
+    };
+
+    const handleCopyCode = async (code: string) => {
+        try {
+            await navigator.clipboard.writeText(code);
+            addToast('Discount code copied to clipboard!', 'success');
+        } catch (error) {
+            addToast('Failed to copy code', 'error');
+        }
     };
 
     // Load discount codes on component mount
@@ -454,8 +463,16 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
+                                        className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 transition-all"
+                                        onClick={() => handleCopyCode(code.code)}
+                                        title="Copy discount code"
+                                    >
+                                        <Copy className="w-4 h-4" />
+                                    </button>
+                                    <button
                                         className="p-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 transition-all"
                                         onClick={() => handleDeleteDiscountCode(code.id)}
+                                        title="Delete discount code"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>

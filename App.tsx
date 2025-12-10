@@ -5,12 +5,12 @@ import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
 import ProductModal from './components/ProductModal';
 import Shop from './components/Shop';
+import Checkout from './components/Checkout';
+import OrderTracking from './components/OrderTracking';
 import CartModal from './components/CartModal';
 import LoginModal from './components/LoginModal';
 import DiscountPanel from './components/DiscountPanel';
-import Checkout from './components/Checkout';
-import OrderTracking from './components/OrderTracking';
-import { Product, ViewState, ToastMessage, ToastType, CartItem, UserProfile } from './types';
+import { Product, ViewState, ToastMessage, ToastType, CartItem, UserProfile, DiscountCode } from './types';
 import { SALES_DATA, CATEGORY_DATA } from './constants';
 import { CheckCircle, XCircle, Info, X, Trash2, AlertTriangle } from 'lucide-react';
 import {
@@ -42,6 +42,7 @@ const App: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [appliedDiscountCode, setAppliedDiscountCode] = useState<DiscountCode | null>(null);
 
   // Toast State
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -391,6 +392,7 @@ const App: React.FC = () => {
               onBack={() => setCustomerView('shop')}
               onSuccess={handleOrderSuccess}
               user={userProfile}
+              discountCode={appliedDiscountCode}
             />
           )}
 
@@ -422,6 +424,7 @@ const App: React.FC = () => {
           onRemoveItem={handleRemoveFromCart}
           onUpdateQuantity={handleUpdateQuantity}
           onCheckout={handleCheckoutStart}
+          onDiscountApplied={setAppliedDiscountCode}
         />
 
         <LoginModal
