@@ -52,3 +52,56 @@ export interface ToastMessage {
     onClick: () => void;
   };
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name?: string;
+  address?: string;
+  city?: string;
+  zip_code?: string;
+  country?: string;
+  phone?: string;
+}
+
+export interface Order {
+  id: string;
+  user_id: string;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  total_amount: number;
+  shipping_details: {
+    address: string;
+    city: string;
+    zip_code: string;
+    country: string;
+    phone?: string;
+  };
+  tracking_number?: string;
+  created_at: string;
+  items?: OrderItem[];
+}
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  price_at_purchase: number;
+  product?: Product;
+}
+
+export interface DiscountCode {
+  id: string;
+  code: string;
+  discount_percentage: number;
+  description?: string;
+  max_uses?: number;
+  uses_count: number;
+  is_active: boolean;
+  expires_at?: string;
+  created_at: string;
+  created_by: string;
+  minimum_amount?: number;
+  applicable_products?: string[]; // Product IDs the code can be applied to
+  applicable_categories?: string[]; // Categories the code can be applied to
+}

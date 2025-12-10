@@ -8,7 +8,9 @@ import Shop from './components/Shop';
 import CartModal from './components/CartModal';
 import LoginModal from './components/LoginModal';
 import DiscountPanel from './components/DiscountPanel';
-import { Product, ViewState, ToastMessage, ToastType, CartItem } from './types';
+import Checkout from './components/Checkout';
+import OrderTracking from './components/OrderTracking';
+import { Product, ViewState, ToastMessage, ToastType, CartItem, UserProfile } from './types';
 import { SALES_DATA, CATEGORY_DATA } from './constants';
 import { CheckCircle, XCircle, Info, X, Trash2, AlertTriangle } from 'lucide-react';
 
@@ -28,8 +30,10 @@ const App: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Customer View State
+  const [customerView, setCustomerView] = useState<'shop' | 'checkout' | 'tracking'>('shop');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Shared Data
   const [products, setProducts] = useState<Product[]>([]);
@@ -75,14 +79,24 @@ const App: React.FC = () => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setIsAuthenticated(!!session);
       if (session) {
         const name = session.user.user_metadata?.username || session.user.email?.split('@')[0] || 'Admin User';
         setUserName(name);
+
+        // Fetch Profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile) setUserProfile(profile);
       } else {
         setAppMode('customer');
         setUserName('Admin User');
+        setUserProfile(null);
       }
     });
 
@@ -294,11 +308,16 @@ const App: React.FC = () => {
     ));
   };
 
-  const handleCheckout = () => {
+  const handleCheckoutStart = () => {
     setIsCartOpen(false);
-    setCart([]); // Clear cart
-    // In a real app, this would process payment and deduct stock
-    addToast("Thank you for your purchase!", ToastType.SUCCESS);
+    setCustomerView('checkout');
+  };
+
+  const handleOrderSuccess = (orderId: string) => {
+    setCart([]);
+    setCustomerView('tracking');
+    addToast("Order placed successfully!", ToastType.SUCCESS);
+    // You might want to auto-fill the tracking ID or just show the tracking page
   };
 
   // 1. Customer View
@@ -329,6 +348,13 @@ const App: React.FC = () => {
 
               <div className="flex items-center space-x-6">
                 <button
+                  onClick={() => setCustomerView('tracking')}
+                  className={`text-sm font-medium transition-colors ${customerView === 'tracking' ? 'text-white' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  Track Order
+                </button>
+
+                <button
                   onClick={() => setIsCartOpen(true)}
                   className="relative group p-2 text-neutral-400 hover:text-white transition-colors"
                 >
@@ -349,10 +375,28 @@ const App: React.FC = () => {
 
         {/* Customer Content */}
         <main className="flex-grow pt-20">
-          <Shop
-            products={products}
-            onAddToCart={handleAddToCart}
-          />
+          {customerView === 'shop' && (
+            <Shop
+              products={products}
+              onAddToCart={handleAddToCart}
+            />
+          )}
+
+          {customerView === 'checkout' && (
+            <Checkout
+              cart={cart}
+              total={cart.reduce((acc, item) => acc + (item.price * item.quantity), 0)}
+              onBack={() => setCustomerView('shop')}
+              onSuccess={handleOrderSuccess}
+              user={userProfile}
+            />
+          )}
+
+          {customerView === 'tracking' && (
+            <OrderTracking
+              onBack={() => setCustomerView('shop')}
+            />
+          )}
         </main>
 
         {/* Footer */}
@@ -375,7 +419,7 @@ const App: React.FC = () => {
           cartItems={cart}
           onRemoveItem={handleRemoveFromCart}
           onUpdateQuantity={handleUpdateQuantity}
-          onCheckout={handleCheckout}
+          onCheckout={handleCheckoutStart}
         />
 
         <LoginModal
@@ -498,7 +542,7 @@ const ToastContainer = ({ toasts }: { toasts: ToastMessage[] }) => {
         <div
           key={toast.id}
           className={`pointer-events-auto flex items-center gap-3 w-full max-w-sm p-4 rounded-xl shadow-2xl text-white transform transition-all duration-300 ease-in-out translate-y-0 opacity-100 backdrop-blur-xl border border-white/10 ${toast.type === ToastType.SUCCESS ? 'bg-emerald-900/90 text-emerald-100 border-emerald-500/20' :
-              toast.type === ToastType.ERROR ? 'bg-rose-900/90 text-rose-100 border-rose-500/20' : 'bg-neutral-800/90 text-neutral-200 border-neutral-500/20'
+            toast.type === ToastType.ERROR ? 'bg-rose-900/90 text-rose-100 border-rose-500/20' : 'bg-neutral-800/90 text-neutral-200 border-neutral-500/20'
             }`}
         >
           {/* Icon */}
@@ -526,8 +570,8 @@ const ToastContainer = ({ toasts }: { toasts: ToastMessage[] }) => {
                   <button
                     onClick={toast.action.onClick}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${toast.action.variant === 'danger'
-                        ? 'bg-rose-500/80 hover:bg-rose-500 text-white border border-rose-400/30'
-                        : 'bg-white/90 hover:bg-white text-black border border-white/20'
+                      ? 'bg-rose-500/80 hover:bg-rose-500 text-white border border-rose-400/30'
+                      : 'bg-white/90 hover:bg-white text-black border border-white/20'
                       }`}
                   >
                     {getActionIcon(toast.action.label)}

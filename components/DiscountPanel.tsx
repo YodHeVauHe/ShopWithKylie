@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Product } from '../types';
-import { Tag, Percent, Check, X, Sparkles, AlertCircle, CheckSquare, Square, MinusSquare } from 'lucide-react';
+import { Product, DiscountCode } from '../types';
+import { Tag, Percent, Check, X, Sparkles, AlertCircle, CheckSquare, Square, MinusSquare, Gift, Clock, Users, Trash2, Edit } from 'lucide-react';
+import { DiscountService } from '../services/discountService';
 
 interface DiscountPanelProps {
     products: Product[];
@@ -19,6 +20,22 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
     const [filterCategory, setFilterCategory] = useState('All');
     const [filterDiscount, setFilterDiscount] = useState<'all' | 'discounted' | 'not-discounted'>('all');
     const [isApplying, setIsApplying] = useState(false);
+    
+    // Discount code states
+    const [showCodeGenerator, setShowCodeGenerator] = useState(false);
+    const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([]);
+    const [loadingCodes, setLoadingCodes] = useState(false);
+    const [newCodeData, setNewCodeData] = useState({
+        code: '',
+        discount_percentage: 10,
+        description: '',
+        max_uses: '',
+        expires_at: '',
+        minimum_amount: '',
+        applicable_products: [] as string[],
+        applicable_categories: [] as string[]
+    });
+    const [isCreatingCode, setIsCreatingCode] = useState(false);
 
     const categories = useMemo(() => {
         return ['All', ...Array.from(new Set(products.map(p => p.category)))];
@@ -84,6 +101,74 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
         }
     };
 
+    // Discount code functions
+    const loadDiscountCodes = async () => {
+        setLoadingCodes(true);
+        try {
+            const result = await DiscountService.getDiscountCodes();
+            if (result.success && result.data) {
+                setDiscountCodes(result.data);
+            }
+        } finally {
+            setLoadingCodes(false);
+        }
+    };
+
+    const handleCreateDiscountCode = async () => {
+        setIsCreatingCode(true);
+        try {
+            const result = await DiscountService.createDiscountCode({
+                code: newCodeData.code || undefined,
+                discount_percentage: newCodeData.discount_percentage,
+                description: newCodeData.description || undefined,
+                max_uses: newCodeData.max_uses ? parseInt(newCodeData.max_uses) : undefined,
+                expires_at: newCodeData.expires_at || undefined,
+                minimum_amount: newCodeData.minimum_amount ? parseInt(newCodeData.minimum_amount) : undefined,
+                applicable_products: newCodeData.applicable_products.length > 0 ? newCodeData.applicable_products : undefined,
+                applicable_categories: newCodeData.applicable_categories.length > 0 ? newCodeData.applicable_categories : undefined,
+                created_by: 'current_user' // This should come from auth context
+            });
+
+            if (result.success) {
+                setNewCodeData({
+                    code: '',
+                    discount_percentage: 10,
+                    description: '',
+                    max_uses: '',
+                    expires_at: '',
+                    minimum_amount: '',
+                    applicable_products: [],
+                    applicable_categories: []
+                });
+                setShowCodeGenerator(false);
+                loadDiscountCodes();
+            }
+        } finally {
+            setIsCreatingCode(false);
+        }
+    };
+
+    const handleDeleteDiscountCode = async (codeId: string) => {
+        try {
+            await DiscountService.deleteDiscountCode(codeId);
+            loadDiscountCodes();
+        } catch (error) {
+            console.error('Failed to delete discount code:', error);
+        }
+    };
+
+    const generateRandomCode = () => {
+        setNewCodeData(prev => ({
+            ...prev,
+            code: DiscountService.generateRandomCode(8)
+        }));
+    };
+
+    // Load discount codes on component mount
+    React.useEffect(() => {
+        loadDiscountCodes();
+    }, []);
+
     const selectedProducts = products.filter(p => selectedIds.has(p.id));
     const discountedSelectedCount = selectedProducts.filter(p => p.discount && p.discount > 0).length;
 
@@ -140,6 +225,203 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                             <p className="text-2xl font-bold text-amber-400">{selectedIds.size}</p>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Discount Codes Section */}
+            <div className="glass-panel rounded-2xl p-6 border border-violet-500/20 bg-gradient-to-r from-violet-900/20 to-purple-900/20">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-violet-500/20">
+                            <Gift className="w-5 h-5 text-violet-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Checkout Discount Codes</h3>
+                            <p className="text-xs text-neutral-400">Generate and manage discount codes for checkout</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setShowCodeGenerator(!showCodeGenerator)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all"
+                    >
+                        <Gift className="w-4 h-4" />
+                        {showCodeGenerator ? 'Hide Generator' : 'Generate Code'}
+                    </button>
+                </div>
+
+                {/* Code Generator Form */}
+                {showCodeGenerator && (
+                    <div className="mb-6 p-4 bg-black/30 rounded-xl border border-white/5 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {/* Code Input */}
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-300 mb-1">Discount Code</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={newCodeData.code}
+                                        onChange={(e) => setNewCodeData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                                        placeholder="Enter code or generate"
+                                        className="flex-1 px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
+                                    />
+                                    <button
+                                        onClick={generateRandomCode}
+                                        className="px-3 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-lg text-xs font-bold transition-all"
+                                    >
+                                        Generate
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Discount Percentage */}
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-300 mb-1">Discount %</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    value={newCodeData.discount_percentage}
+                                    onChange={(e) => setNewCodeData(prev => ({ ...prev, discount_percentage: Math.min(100, Math.max(1, parseInt(e.target.value) || 1)) }))}
+                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
+                                />
+                            </div>
+
+                            {/* Max Uses */}
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-300 mb-1">Max Uses (optional)</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={newCodeData.max_uses}
+                                    onChange={(e) => setNewCodeData(prev => ({ ...prev, max_uses: e.target.value }))}
+                                    placeholder="Unlimited"
+                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
+                                />
+                            </div>
+
+                            {/* Expiry Date */}
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-300 mb-1">Expiry Date (optional)</label>
+                                <input
+                                    type="datetime-local"
+                                    value={newCodeData.expires_at}
+                                    onChange={(e) => setNewCodeData(prev => ({ ...prev, expires_at: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
+                                />
+                            </div>
+
+                            {/* Minimum Amount */}
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-300 mb-1">Min Amount (optional)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={newCodeData.minimum_amount}
+                                    onChange={(e) => setNewCodeData(prev => ({ ...prev, minimum_amount: e.target.value }))}
+                                    placeholder="No minimum"
+                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
+                                />
+                            </div>
+
+                            {/* Description */}
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-300 mb-1">Description (optional)</label>
+                                <input
+                                    type="text"
+                                    value={newCodeData.description}
+                                    onChange={(e) => setNewCodeData(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Code description"
+                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handleCreateDiscountCode}
+                                disabled={isCreatingCode || !newCodeData.code}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Gift className="w-4 h-4" />
+                                {isCreatingCode ? 'Creating...' : 'Create Discount Code'}
+                            </button>
+                            <button
+                                onClick={() => setShowCodeGenerator(false)}
+                                className="px-4 py-2 rounded-lg text-sm font-bold bg-neutral-700 hover:bg-neutral-600 text-white transition-all"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Existing Codes List */}
+                <div className="space-y-3">
+                    {loadingCodes ? (
+                        <div className="text-center py-4">
+                            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-violet-400"></div>
+                            <p className="text-neutral-400 text-sm mt-2">Loading discount codes...</p>
+                        </div>
+                    ) : discountCodes.length === 0 ? (
+                        <div className="text-center py-8">
+                            <Gift className="w-12 h-12 text-neutral-600 mx-auto mb-3" />
+                            <p className="text-neutral-400 text-sm">No discount codes created yet</p>
+                            <p className="text-neutral-500 text-xs mt-1">Generate your first discount code to get started</p>
+                        </div>
+                    ) : (
+                        discountCodes.map((code) => (
+                            <div key={code.id} className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-white/5">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-2 rounded-lg bg-violet-500/20">
+                                        <Gift className="w-4 h-4 text-violet-400" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-white">{code.code}</span>
+                                            <span className="px-2 py-0.5 bg-violet-600 text-white text-xs font-bold rounded">
+                                                {code.discount_percentage}% OFF
+                                            </span>
+                                            {code.is_active ? (
+                                                <span className="px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded">
+                                                    Active
+                                                </span>
+                                            ) : (
+                                                <span className="px-2 py-0.5 bg-rose-600 text-white text-xs font-bold rounded">
+                                                    Inactive
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-4 mt-1 text-xs text-neutral-400">
+                                            {code.description && <span>{code.description}</span>}
+                                            {code.max_uses && (
+                                                <span className="flex items-center gap-1">
+                                                    <Users className="w-3 h-3" />
+                                                    {code.uses_count}/{code.max_uses} uses
+                                                </span>
+                                            )}
+                                            {code.expires_at && (
+                                                <span className="flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" />
+                                                    Expires {new Date(code.expires_at).toLocaleDateString()}
+                                                </span>
+                                            )}
+                                            {code.minimum_amount && (
+                                                <span>Min: UGX {code.minimum_amount.toLocaleString()}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        className="p-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 transition-all"
+                                        onClick={() => handleDeleteDiscountCode(code.id)}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 

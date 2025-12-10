@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CartItem } from '../types';
+import { useDiscountCode } from '../hooks/useDiscountCode';
+import { Gift, X, Check, AlertCircle } from 'lucide-react';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -11,9 +13,28 @@ interface CartModalProps {
 }
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRemoveItem, onUpdateQuantity, onCheckout }) => {
+  const [discountCodeInput, setDiscountCodeInput] = useState('');
+  const { discountCode, isLoading, error, validateCode, clearDiscount, applyDiscount } = useDiscountCode();
+  
   if (!isOpen) return null;
 
-  const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const discountAmount = discountCode ? Math.round(subtotal * (discountCode.discount_percentage / 100)) : 0;
+  const total = subtotal - discountAmount;
+
+  const handleApplyDiscount = async () => {
+    const isValid = await validateCode(discountCodeInput, subtotal, cartItems.map(item => item.id));
+    if (isValid) {
+      setDiscountCodeInput('');
+    }
+  };
+
+  const handleCheckout = async () => {
+    if (discountCode) {
+      await applyDiscount();
+    }
+    onCheckout();
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -103,16 +124,86 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
 
           {cartItems.length > 0 && (
             <div className="border-t border-white/5 px-4 py-4 bg-neutral-900/80 backdrop-blur-xl">
-              <div className="flex justify-between text-base font-medium text-neutral-400 mb-2">
-                <p>Subtotal</p>
-                <p className="text-white font-bold">UGX {total.toLocaleString()}</p>
+              {/* Discount Code Section */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Gift className="w-4 h-4 text-violet-400" />
+                  <span className="text-sm font-medium text-white">Discount Code</span>
+                </div>
+                
+                {!discountCode ? (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={discountCodeInput}
+                        onChange={(e) => setDiscountCodeInput(e.target.value.toUpperCase())}
+                        placeholder="Enter discount code"
+                        className="flex-1 px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
+                        disabled={isLoading}
+                      />
+                      <button
+                        onClick={handleApplyDiscount}
+                        disabled={isLoading || !discountCodeInput.trim()}
+                        className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? 'Applying...' : 'Apply'}
+                      </button>
+                    </div>
+                    {error && (
+                      <div className="flex items-center gap-2 text-xs text-rose-400">
+                        <AlertCircle className="w-3 h-3" />
+                        <span>{error}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-3 bg-emerald-900/20 border border-emerald-500/20 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <div>
+                        <span className="text-sm font-medium text-white">{discountCode.code}</span>
+                        <span className="ml-2 px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded">
+                          {discountCode.discount_percentage}% OFF
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={clearDiscount}
+                      className="text-neutral-400 hover:text-rose-400 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between text-base font-medium text-neutral-400 mb-6">
-                <p>Shipping</p>
-                <p className="text-white">Calculated at checkout</p>
+
+              {/* Order Summary */}
+              <div className="space-y-2 mb-6">
+                <div className="flex justify-between text-base font-medium text-neutral-400">
+                  <p>Subtotal</p>
+                  <p className="text-white font-bold">UGX {subtotal.toLocaleString()}</p>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-base font-medium text-emerald-400">
+                    <p>Discount ({discountCode?.code})</p>
+                    <p className="font-bold">-UGX {discountAmount.toLocaleString()}</p>
+                  </div>
+                )}
+                <div className="flex justify-between text-base font-medium text-neutral-400">
+                  <p>Shipping</p>
+                  <p className="text-white">Calculated at checkout</p>
+                </div>
+                <div className="pt-2 border-t border-white/10">
+                  <div className="flex justify-between text-lg font-bold text-white">
+                    <p>Total</p>
+                    <p>UGX {total.toLocaleString()}</p>
+                  </div>
+                </div>
               </div>
+              
               <button
-                onClick={onCheckout}
+                onClick={handleCheckout}
                 className="w-full flex items-center justify-center rounded-xl bg-violet-600 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-violet-900/20 hover:bg-violet-500 transition-all uppercase tracking-wide"
               >
                 Checkout Now
