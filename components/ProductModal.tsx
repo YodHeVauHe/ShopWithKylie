@@ -133,10 +133,6 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
     }
   }, [initialProduct, isOpen]);
 
-  // Debug log for images array changes
-  useEffect(() => {
-    console.log('Images array updated:', formData.images);
-  }, [formData.images]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -156,7 +152,6 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
     }
     
     const files = Array.from(e.target.files);
-    console.log('Files selected for later upload:', files.map(f => f.name));
     setSelectedFiles(prev => [...prev, ...files]);
     
     // Create preview URLs for immediate display
@@ -212,18 +207,15 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
     if (selectedFiles.length > 0) {
       setUploading(true);
       try {
-        console.log('Starting upload of', selectedFiles.length, 'files...');
         
         // First check if bucket exists
         const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
         if (bucketError) {
-          console.error('Error listing buckets:', bucketError);
           throw bucketError;
         }
         
         const productImagesBucket = buckets?.find(b => b.name === 'product-images');
         if (!productImagesBucket) {
-          console.error('product-images bucket does not exist!');
           throw new Error('product-images bucket does not exist. Please create it in Supabase dashboard.');
         }
         
@@ -233,29 +225,24 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
           const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
           const filePath = `${fileName}`;
           
-          console.log('Uploading file:', file.name, 'to path:', filePath);
           
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('product-images')
             .upload(filePath, file);
             
           if (uploadError) {
-            console.error('Upload error for', file.name, ':', uploadError);
             throw uploadError;
           }
           
-          console.log('Upload successful for', file.name, ':', uploadData);
           
           const { data: { publicUrl } } = supabase.storage
             .from('product-images')
             .getPublicUrl(filePath);
             
-          console.log('Public URL for', file.name, ':', publicUrl);
           return publicUrl;
         });
         
         const uploadedUrls = await Promise.all(uploadPromises);
-        console.log('All files uploaded successfully:', uploadedUrls);
         
         // Update form data with uploaded URLs
         setFormData(prev => ({
@@ -271,7 +258,6 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
         await submitForm(uploadedUrls);
         
       } catch (error) {
-        console.error('Error uploading files:', error);
         alert('Error uploading images: ' + (error instanceof Error ? error.message : 'Unknown error'));
       } finally {
         setUploading(false);
@@ -351,13 +337,13 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
                             src={img} 
                             alt={`Product ${index + 1}`} 
                             className="w-full h-full object-cover" 
-                            onLoad={() => console.log('Image loaded successfully:', img)}
-                            onError={() => console.error('Image failed to load:', img)}
+                            onLoad={() => {}}
+                            onError={() => {}}
                           />
                           <button
                             type="button"
                             onClick={() => handleRemoveImage(index)}
-                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-75 hover:opacity-100 transition-opacity shadow-lg"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                           </button>
@@ -381,14 +367,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
                       <span className="text-[10px] text-neutral-400 uppercase tracking-wider">{uploading ? '...' : 'Add'}</span>
                     </div>
                   </div>
-                  {/* Debug info */}
-                  <div className="mt-2 text-xs text-neutral-600">
-                    Debug: Images count: {formData.images?.length || 0}
-                    {formData.images && formData.images.length > 0 && (
-                      <div>First image URL: {formData.images[0]}</div>
-                    )}
-                  </div>
-                  <input
+                                    <input
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileChange}

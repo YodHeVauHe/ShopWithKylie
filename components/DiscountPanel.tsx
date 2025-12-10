@@ -18,13 +18,20 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
     addToast,
     userName = 'admin',
 }) => {
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [discountPercentage, setDiscountPercentage] = useState<number>(20);
+    // Load saved state from localStorage on component mount
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
+        const saved = localStorage.getItem('discountPanel_selectedIds');
+        return saved ? new Set(JSON.parse(saved)) : new Set();
+    });
+    const [discountPercentage, setDiscountPercentage] = useState<number>(() => {
+        const saved = localStorage.getItem('discountPanel_percentage');
+        return saved ? parseInt(saved) : 20;
+    });
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCategory, setFilterCategory] = useState('All');
     const [filterDiscount, setFilterDiscount] = useState<'all' | 'discounted' | 'not-discounted'>('all');
     const [isApplying, setIsApplying] = useState(false);
-    
+
     // Discount code states
     const [showCodeGenerator, setShowCodeGenerator] = useState(false);
     const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([]);
@@ -65,6 +72,8 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
             } else {
                 newSet.add(id);
             }
+            // Save to localStorage
+            localStorage.setItem('discountPanel_selectedIds', JSON.stringify(Array.from(newSet)));
             return newSet;
         });
     };
@@ -72,10 +81,14 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
     const selectAllFiltered = () => {
         const allFilteredIds = filteredProducts.map(p => p.id);
         setSelectedIds(new Set(allFilteredIds));
+        // Save to localStorage
+        localStorage.setItem('discountPanel_selectedIds', JSON.stringify(allFilteredIds));
     };
 
     const deselectAll = () => {
         setSelectedIds(new Set());
+        // Save to localStorage
+        localStorage.setItem('discountPanel_selectedIds', JSON.stringify([]));
     };
 
     const isAllSelected = filteredProducts.length > 0 &&
@@ -88,7 +101,9 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
         setIsApplying(true);
         try {
             await onApplyDiscount(Array.from(selectedIds), discountPercentage);
+            // Clear selection after successful application
             setSelectedIds(new Set());
+            localStorage.setItem('discountPanel_selectedIds', JSON.stringify([]));
         } finally {
             setIsApplying(false);
         }
@@ -99,7 +114,9 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
         setIsApplying(true);
         try {
             await onRemoveDiscount(Array.from(selectedIds));
+            // Clear selection after successful removal
             setSelectedIds(new Set());
+            localStorage.setItem('discountPanel_selectedIds', JSON.stringify([]));
         } finally {
             setIsApplying(false);
         }
@@ -123,7 +140,7 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
             addToast('Please enter a discount code', 'error');
             return;
         }
-        
+
         console.log('Starting discount code creation...');
         setIsCreatingCode(true);
         try {
@@ -190,7 +207,7 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
             addToast('No products have discounts to remove', 'info');
             return;
         }
-        
+
         setIsApplying(true);
         try {
             const discountedProductIds = discountedProducts.map(p => p.id);
@@ -224,6 +241,25 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
     React.useEffect(() => {
         loadDiscountCodes();
     }, []);
+
+    // Validate selected IDs when products change - remove any that no longer exist
+    React.useEffect(() => {
+        if (products.length > 0) {
+            const currentProductIds = new Set(products.map(p => p.id));
+            const validSelectedIds = new Set(Array.from(selectedIds).filter(id => currentProductIds.has(id)));
+
+            // Only update if there's a change to avoid infinite loops
+            if (validSelectedIds.size !== selectedIds.size) {
+                setSelectedIds(validSelectedIds);
+                localStorage.setItem('discountPanel_selectedIds', JSON.stringify(Array.from(validSelectedIds)));
+            }
+        }
+    }, [products]);
+
+    // Save discount percentage to localStorage whenever it changes
+    React.useEffect(() => {
+        localStorage.setItem('discountPanel_percentage', discountPercentage.toString());
+    }, [discountPercentage]);
 
     const selectedProducts = products.filter(p => selectedIds.has(p.id));
     const discountedSelectedCount = selectedProducts.filter(p => p.discount && p.discount > 0).length;
@@ -284,288 +320,437 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                 </div>
             </div>
 
-            {/* Discount Codes Section */}
-            <div className="glass-panel rounded-2xl p-4 sm:p-6 border border-violet-500/20 bg-gradient-to-r from-violet-900/20 to-purple-900/20">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="p-2 rounded-lg bg-violet-500/20 flex-shrink-0">
-                            <Gift className="w-5 h-5 text-violet-400" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-lg font-bold text-white truncate">Checkout Discount Codes</h3>
-                            <p className="text-xs text-neutral-400 sm:hidden">Generate & manage codes</p>
-                            <p className="text-xs text-neutral-400 hidden sm:block">Generate and manage discount codes for checkout</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => setShowCodeGenerator(!showCodeGenerator)}
-                        className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all flex-shrink-0"
-                    >
-                        <Gift className="w-4 h-4" />
-                        <span className="hidden sm:inline">{showCodeGenerator ? 'Hide Generator' : 'Generate Code'}</span>
-                        <span className="sm:hidden">{showCodeGenerator ? 'Hide' : 'Gen'}</span>
-                    </button>
-                </div>
+            {/* Discount Codes Section - Premium Redesign */}
+            <div className="relative overflow-hidden rounded-2xl xl:rounded-3xl">
+                {/* Animated Gradient Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-teal-500/10 via-transparent to-transparent" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-400/40 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl" />
+                <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl" />
 
-                {/* Code Generator Form */}
-                {showCodeGenerator && (
-                    <div className="mb-6 p-4 bg-black/30 rounded-xl border border-white/5 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {/* Code Input */}
-                            <div>
-                                <label className="block text-xs font-medium text-neutral-300 mb-1">Discount Code</label>
-                                <div className="flex gap-2">
+                {/* Content */}
+                <div className="relative p-4 sm:p-5 lg:p-6">
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-teal-500/30 rounded-xl blur-lg" />
+                                <div className="relative p-2.5 rounded-xl bg-gradient-to-br from-teal-500/30 to-cyan-500/20 border border-teal-400/20">
+                                    <Gift className="w-5 h-5 text-teal-300" />
+                                </div>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">Checkout Discount Codes</h3>
+                                <p className="text-xs text-teal-200/60 mt-0.5 line-clamp-1">Generate and manage promo codes for customers</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowCodeGenerator(!showCodeGenerator)}
+                            className="group relative inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40"
+                        >
+                            <Gift className="w-4 h-4" />
+                            <span className="hidden sm:inline">{showCodeGenerator ? 'Hide Generator' : 'Generate Code'}</span>
+                            <span className="sm:hidden">{showCodeGenerator ? 'Hide' : 'New'}</span>
+                        </button>
+                    </div>
+
+                    {/* Code Generator Form */}
+                    {showCodeGenerator && (
+                        <div className="mb-6 p-4 sm:p-5 bg-black/30 rounded-xl border border-white/10 backdrop-blur-sm space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                {/* Code Input */}
+                                <div className="md:col-span-2 xl:col-span-1">
+                                    <label className="block text-xs font-semibold text-teal-200/80 mb-1.5 uppercase tracking-wider">Discount Code</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={newCodeData.code}
+                                            onChange={(e) => setNewCodeData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                                            placeholder="SUMMER2024"
+                                            className="flex-1 px-3.5 py-2.5 bg-black/30 border border-white/10 rounded-xl text-white text-sm font-medium placeholder:text-white/30 focus:outline-none focus:border-teal-500/50 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                                        />
+                                        <button
+                                            onClick={generateRandomCode}
+                                            className="px-3.5 py-2.5 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200 rounded-xl text-xs font-bold transition-all border border-teal-500/20 hover:border-teal-500/30"
+                                        >
+                                            Random
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Discount Percentage */}
+                                <div>
+                                    <label className="block text-xs font-semibold text-teal-200/80 mb-1.5 uppercase tracking-wider">Discount %</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        value={newCodeData.discount_percentage}
+                                        onChange={(e) => setNewCodeData(prev => ({ ...prev, discount_percentage: Math.min(100, Math.max(1, parseInt(e.target.value) || 1)) }))}
+                                        className="w-full px-3.5 py-2.5 bg-black/30 border border-white/10 rounded-xl text-white text-sm font-medium focus:outline-none focus:border-teal-500/50 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                                    />
+                                </div>
+
+                                {/* Max Uses */}
+                                <div>
+                                    <label className="block text-xs font-semibold text-teal-200/80 mb-1.5 uppercase tracking-wider">Max Uses</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={newCodeData.max_uses}
+                                        onChange={(e) => setNewCodeData(prev => ({ ...prev, max_uses: e.target.value }))}
+                                        placeholder="Unlimited"
+                                        className="w-full px-3.5 py-2.5 bg-black/30 border border-white/10 rounded-xl text-white text-sm font-medium placeholder:text-white/30 focus:outline-none focus:border-teal-500/50 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                                    />
+                                </div>
+
+                                {/* Expiry Date */}
+                                <div>
+                                    <label className="block text-xs font-semibold text-teal-200/80 mb-1.5 uppercase tracking-wider">Expires</label>
+                                    <input
+                                        type="datetime-local"
+                                        value={newCodeData.expires_at}
+                                        onChange={(e) => setNewCodeData(prev => ({ ...prev, expires_at: e.target.value }))}
+                                        className="w-full px-3.5 py-2.5 bg-black/30 border border-white/10 rounded-xl text-white text-sm font-medium focus:outline-none focus:border-teal-500/50 focus:ring-2 focus:ring-teal-500/20 transition-all [color-scheme:dark]"
+                                    />
+                                </div>
+
+                                {/* Minimum Amount */}
+                                <div>
+                                    <label className="block text-xs font-semibold text-teal-200/80 mb-1.5 uppercase tracking-wider">Min Order</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={newCodeData.minimum_amount}
+                                        onChange={(e) => setNewCodeData(prev => ({ ...prev, minimum_amount: e.target.value }))}
+                                        placeholder="No minimum"
+                                        className="w-full px-3.5 py-2.5 bg-black/30 border border-white/10 rounded-xl text-white text-sm font-medium placeholder:text-white/30 focus:outline-none focus:border-teal-500/50 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                                    />
+                                </div>
+
+                                {/* Description */}
+                                <div className="md:col-span-2 xl:col-span-1">
+                                    <label className="block text-xs font-semibold text-teal-200/80 mb-1.5 uppercase tracking-wider">Description</label>
                                     <input
                                         type="text"
-                                        value={newCodeData.code}
-                                        onChange={(e) => setNewCodeData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
-                                        placeholder="Enter code or generate"
-                                        className="flex-1 px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
+                                        value={newCodeData.description}
+                                        onChange={(e) => setNewCodeData(prev => ({ ...prev, description: e.target.value }))}
+                                        placeholder="Holiday special discount..."
+                                        className="w-full px-3.5 py-2.5 bg-black/30 border border-white/10 rounded-xl text-white text-sm font-medium placeholder:text-white/30 focus:outline-none focus:border-teal-500/50 focus:ring-2 focus:ring-teal-500/20 transition-all"
                                     />
-                                    <button
-                                        onClick={generateRandomCode}
-                                        className="px-3 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-lg text-xs font-bold transition-all"
-                                    >
-                                        Generate
-                                    </button>
                                 </div>
                             </div>
 
-                            {/* Discount Percentage */}
-                            <div>
-                                <label className="block text-xs font-medium text-neutral-300 mb-1">Discount %</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    value={newCodeData.discount_percentage}
-                                    onChange={(e) => setNewCodeData(prev => ({ ...prev, discount_percentage: Math.min(100, Math.max(1, parseInt(e.target.value) || 1)) }))}
-                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
-                                />
-                            </div>
-
-                            {/* Max Uses */}
-                            <div>
-                                <label className="block text-xs font-medium text-neutral-300 mb-1">Max Uses (optional)</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={newCodeData.max_uses}
-                                    onChange={(e) => setNewCodeData(prev => ({ ...prev, max_uses: e.target.value }))}
-                                    placeholder="Unlimited"
-                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
-                                />
-                            </div>
-
-                            {/* Expiry Date */}
-                            <div>
-                                <label className="block text-xs font-medium text-neutral-300 mb-1">Expiry Date (optional)</label>
-                                <input
-                                    type="datetime-local"
-                                    value={newCodeData.expires_at}
-                                    onChange={(e) => setNewCodeData(prev => ({ ...prev, expires_at: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
-                                />
-                            </div>
-
-                            {/* Minimum Amount */}
-                            <div>
-                                <label className="block text-xs font-medium text-neutral-300 mb-1">Min Amount (optional)</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={newCodeData.minimum_amount}
-                                    onChange={(e) => setNewCodeData(prev => ({ ...prev, minimum_amount: e.target.value }))}
-                                    placeholder="No minimum"
-                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
-                                />
-                            </div>
-
-                            {/* Description */}
-                            <div>
-                                <label className="block text-xs font-medium text-neutral-300 mb-1">Description (optional)</label>
-                                <input
-                                    type="text"
-                                    value={newCodeData.description}
-                                    onChange={(e) => setNewCodeData(prev => ({ ...prev, description: e.target.value }))}
-                                    placeholder="Code description"
-                                    className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500/50"
-                                />
+                            {/* Action Buttons */}
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-2">
+                                <button
+                                    onClick={handleCreateDiscountCode}
+                                    disabled={isCreatingCode || !newCodeData.code}
+                                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 transform hover:scale-[1.02] active:scale-[0.98]"
+                                >
+                                    <Gift className="w-4 h-4" />
+                                    {isCreatingCode ? 'Creating...' : 'Create Code'}
+                                </button>
+                                <button
+                                    onClick={() => setShowCodeGenerator(false)}
+                                    className="flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-bold bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all border border-white/10 hover:border-white/20"
+                                >
+                                    Cancel
+                                </button>
                             </div>
                         </div>
-
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={handleCreateDiscountCode}
-                                disabled={isCreatingCode || !newCodeData.code}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Gift className="w-4 h-4" />
-                                {isCreatingCode ? 'Creating...' : 'Create Discount Code'}
-                            </button>
-                            <button
-                                onClick={() => setShowCodeGenerator(false)}
-                                className="px-4 py-2 rounded-lg text-sm font-bold bg-neutral-700 hover:bg-neutral-600 text-white transition-all"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Existing Codes List */}
-                <div className="space-y-3">
-                    {loadingCodes ? (
-                        <div className="text-center py-4">
-                            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-violet-400"></div>
-                            <p className="text-neutral-400 text-sm mt-2">Loading discount codes...</p>
-                        </div>
-                    ) : discountCodes.length === 0 ? (
-                        <div className="text-center py-8">
-                            <Gift className="w-12 h-12 text-neutral-600 mx-auto mb-3" />
-                            <p className="text-neutral-400 text-sm">No discount codes created yet</p>
-                            <p className="text-neutral-500 text-xs mt-1">Generate your first discount code to get started</p>
-                        </div>
-                    ) : (
-                        discountCodes.map((code) => (
-                            <div key={code.id} className="bg-black/20 rounded-lg border border-white/5 overflow-hidden">
-                                {/* Main content - mobile-first layout */}
-                                <div className="p-3 sm:p-4">
-                                    {/* Header with code and status */}
-                                    <div className="flex items-start justify-between gap-3 mb-3">
-                                        <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
-                                            <span className="font-bold text-white text-sm sm:text-base truncate">{code.code}</span>
-                                            <span className="px-2 py-0.5 bg-violet-600 text-white text-xs font-bold rounded flex-shrink-0">
-                                                {code.discount_percentage}% OFF
-                                            </span>
-                                            {code.is_active ? (
-                                                <span className="px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded flex-shrink-0">
-                                                    Active
-                                                </span>
-                                            ) : (
-                                                <span className="px-2 py-0.5 bg-rose-600 text-white text-xs font-bold rounded flex-shrink-0">
-                                                    Inactive
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-1 flex-shrink-0">
-                                            <button
-                                                className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 transition-all"
-                                                onClick={() => handleCopyCode(code.code)}
-                                                title="Copy discount code"
-                                            >
-                                                <Copy className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                className="p-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 transition-all"
-                                                onClick={() => handleDeleteDiscountCode(code.id)}
-                                                title="Delete discount code"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Description */}
-                                    {code.description && (
-                                        <p className="text-xs text-neutral-400 mb-2 line-clamp-2">{code.description}</p>
-                                    )}
-                                    
-                                    {/* Details grid */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs text-neutral-400">
-                                        {code.max_uses && (
-                                            <div className="flex items-center gap-1">
-                                                <Users className="w-3 h-3 flex-shrink-0" />
-                                                <span>{code.uses_count}/{code.max_uses} uses</span>
-                                            </div>
-                                        )}
-                                        {code.expires_at && (
-                                            <div className="flex items-center gap-1">
-                                                <Clock className="w-3 h-3 flex-shrink-0" />
-                                                <span className="truncate">Expires {new Date(code.expires_at).toLocaleDateString()}</span>
-                                            </div>
-                                        )}
-                                        {code.minimum_amount && (
-                                            <div className="flex items-center gap-1 sm:col-span-2 lg:col-span-1">
-                                                <span className="font-medium">Min:</span>
-                                                <span className="truncate">UGX {code.minimum_amount.toLocaleString()}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ))
                     )}
+
+                    {/* Existing Codes List */}
+                    <div className="space-y-3">
+                        {loadingCodes ? (
+                            <div className="flex flex-col items-center justify-center py-12">
+                                <div className="relative">
+                                    <div className="w-10 h-10 border-2 border-teal-500/20 rounded-full animate-pulse" />
+                                    <div className="absolute inset-0 w-10 h-10 border-2 border-transparent border-t-teal-400 rounded-full animate-spin" />
+                                </div>
+                                <p className="text-teal-200/60 text-sm mt-4 font-medium">Loading codes...</p>
+                            </div>
+                        ) : discountCodes.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-12 px-4">
+                                <div className="relative mb-4">
+                                    <div className="absolute inset-0 bg-teal-500/20 rounded-full blur-xl" />
+                                    <div className="relative p-4 rounded-2xl bg-gradient-to-br from-teal-500/20 to-cyan-500/10 border border-teal-400/20">
+                                        <Gift className="w-8 h-8 text-teal-300/80" />
+                                    </div>
+                                </div>
+                                <p className="text-white/80 text-sm font-semibold">No discount codes yet</p>
+                                <p className="text-teal-200/50 text-xs mt-1 text-center max-w-[200px]">Create your first promo code to offer discounts</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                {discountCodes.map((code) => (
+                                    <div
+                                        key={code.id}
+                                        className="group relative bg-black/20 hover:bg-black/30 rounded-xl border border-white/5 hover:border-teal-500/20 overflow-hidden transition-all duration-300 backdrop-blur-sm"
+                                    >
+                                        {/* Hover Glow Effect */}
+                                        <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 via-teal-500/5 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                                        <div className="relative p-4">
+                                            {/* Top Row - Code & Actions */}
+                                            <div className="flex items-start justify-between gap-3 mb-3">
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0 flex-1">
+                                                    {/* Code Name */}
+                                                    <span className="font-bold text-white text-base sm:text-lg tracking-wide font-mono">{code.code}</span>
+                                                    {/* Badges */}
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span className="px-2 py-1 bg-gradient-to-r from-teal-600 to-cyan-600 text-white text-xs font-bold rounded-lg shadow-sm">
+                                                            {code.discount_percentage}% OFF
+                                                        </span>
+                                                        {code.is_active ? (
+                                                            <span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-lg border border-emerald-500/20">
+                                                                Active
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-2 py-1 bg-rose-500/20 text-rose-300 text-xs font-bold rounded-lg border border-rose-500/20">
+                                                                Inactive
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {/* Action Buttons */}
+                                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                    <button
+                                                        className="p-2 rounded-lg bg-white/5 hover:bg-sky-500/20 text-white/50 hover:text-sky-300 transition-all duration-200 border border-transparent hover:border-sky-500/20"
+                                                        onClick={() => handleCopyCode(code.code)}
+                                                        title="Copy code"
+                                                    >
+                                                        <Copy className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-white/50 hover:text-rose-300 transition-all duration-200 border border-transparent hover:border-rose-500/20"
+                                                        onClick={() => handleDeleteDiscountCode(code.id)}
+                                                        title="Delete code"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Description */}
+                                            {code.description && (
+                                                <p className="text-sm text-teal-200/60 mb-3 line-clamp-1">{code.description}</p>
+                                            )}
+
+                                            {/* Details Row */}
+                                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                                                {code.max_uses && (
+                                                    <div className="flex items-center gap-1.5 text-white/50">
+                                                        <Users className="w-3.5 h-3.5 text-teal-400/70" />
+                                                        <span>
+                                                            <span className="text-white/80 font-semibold">{code.uses_count}</span>
+                                                            <span className="text-white/40">/{code.max_uses}</span>
+                                                            <span className="ml-1">uses</span>
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {code.expires_at && (
+                                                    <div className="flex items-center gap-1.5 text-white/50">
+                                                        <Clock className="w-3.5 h-3.5 text-cyan-400/70" />
+                                                        <span>
+                                                            Expires <span className="text-white/70 font-medium">{new Date(code.expires_at).toLocaleDateString()}</span>
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {code.minimum_amount && (
+                                                    <div className="flex items-center gap-1.5 text-white/50">
+                                                        <span className="text-emerald-400/70 font-semibold">Min:</span>
+                                                        <span className="text-white/70 font-medium">UGX {code.minimum_amount.toLocaleString()}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Action Panel */}
-            <div className="glass-panel rounded-2xl p-4 border border-emerald-500/20 bg-gradient-to-r from-emerald-900/20 to-teal-900/20">
-                <div className="flex flex-col gap-4">
-                    {/* Discount Percentage Input */}
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                        <label className="text-sm font-medium text-neutral-300">Discount:</label>
-                        <div className="relative">
-                            <input
-                                type="number"
-                                min="1"
-                                max="100"
-                                value={discountPercentage}
-                                onChange={(e) => setDiscountPercentage(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
-                                className="w-20 px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white text-center font-bold focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">%</span>
+            {/* Action Panel - Premium Glassmorphism Design */}
+            <div className="relative overflow-hidden rounded-2xl xl:rounded-3xl">
+                {/* Gradient Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl" />
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-violet-500/5" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/20 to-transparent" />
+
+                {/* Content */}
+                <div className="relative p-4 sm:p-5 lg:p-6">
+                    {/* Discount Configuration */}
+                    <div className="flex flex-col gap-4 lg:gap-6">
+                        {/* Top Row - Discount Input & Quick Set */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            {/* Discount Input Group */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                                <label className="text-sm font-semibold text-white/90 tracking-wide">
+                                    Discount Percentage
+                                </label>
+                                <div className="relative flex items-center gap-2">
+                                    <div className="relative group">
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/30 to-violet-500/30 rounded-xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
+                                        <div className="relative bg-black/30 border border-white/10 rounded-xl overflow-hidden">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="100"
+                                                value={discountPercentage}
+                                                onChange={(e) => setDiscountPercentage(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
+                                                className="w-16 sm:w-20 px-3 py-2.5 bg-transparent text-white text-center text-lg font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            />
+                                        </div>
+                                    </div>
+                                    <span className="px-3 py-2.5 bg-white/5 text-white/60 font-medium rounded-xl border border-white/10">%</span>
+                                </div>
+                            </div>
+
+                            {/* Quick Set Buttons */}
+                            <div className="flex flex-col gap-2">
+                                <span className="text-xs text-white/40 font-medium tracking-wider uppercase sm:text-right">Quick set</span>
+                                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                                    {[10, 15, 20, 25, 30, 50].map(percent => (
+                                        <button
+                                            key={percent}
+                                            onClick={() => setDiscountPercentage(percent)}
+                                            className={`
+                                                px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold rounded-lg sm:rounded-xl 
+                                                transition-all duration-200 transform hover:scale-105 active:scale-95
+                                                ${discountPercentage === percent
+                                                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/25'
+                                                    : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border border-white/5'
+                                                }
+                                            `}
+                                        >
+                                            {percent}%
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Quick Discount Buttons */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        {[10, 15, 20, 25, 30, 50].map(percent => (
-                            <button
-                                key={percent}
-                                onClick={() => setDiscountPercentage(percent)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0 ${discountPercentage === percent
-                                        ? 'bg-emerald-500 text-white'
-                                        : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
-                                    }`}
-                            >
-                                {percent}%
-                            </button>
-                        ))}
-                    </div>
+                        {/* Divider with gradient */}
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-white/5" />
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-32 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                            </div>
+                        </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                        <button
-                            onClick={handleApplyDiscount}
-                            disabled={selectedIds.size === 0 || isApplying}
-                            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${selectedIds.size === 0
-                                    ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
-                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30 hover:shadow-emerald-900/50'
-                                }`}
-                        >
-                            <Check className="w-4 h-4" />
-                            Apply {discountPercentage}% to {selectedIds.size} items
-                        </button>
-                        {discountedSelectedCount > 0 && (
-                            <button
-                                onClick={handleRemoveDiscount}
-                                disabled={isApplying}
-                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/20 transition-all"
-                            >
-                                <X className="w-4 h-4" />
-                                Remove Discount
-                            </button>
-                        )}
-                        <button
-                            onClick={handleRemoveAllDiscounts}
-                            disabled={isApplying || products.filter(p => p.discount && p.discount > 0).length === 0}
-                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Remove all discounts from products"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                            Remove All
-                        </button>
+                        {/* Action Controls */}
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                            {/* Action Buttons */}
+                            <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
+                                {/* Apply Discount Button */}
+                                <button
+                                    onClick={handleApplyDiscount}
+                                    disabled={selectedIds.size === 0 || isApplying}
+                                    className={`
+                                        group relative inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 
+                                        text-sm font-bold rounded-xl transition-all duration-300 transform
+                                        ${selectedIds.size === 0
+                                            ? 'bg-white/5 text-white/30 cursor-not-allowed'
+                                            : 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 hover:scale-[1.02] hover:shadow-lg hover:shadow-emerald-500/25 active:scale-[0.98]'
+                                        }
+                                    `}
+                                >
+                                    <Check className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Apply Discount</span>
+                                    <span className="sm:hidden">Apply</span>
+                                    {selectedIds.size > 0 && (
+                                        <span className="hidden sm:inline ml-1 px-1.5 py-0.5 bg-white/20 rounded-md text-xs">
+                                            {selectedIds.size}
+                                        </span>
+                                    )}
+                                </button>
+
+                                {/* Remove from Selected Button */}
+                                {discountedSelectedCount > 0 && (
+                                    <button
+                                        onClick={handleRemoveDiscount}
+                                        disabled={isApplying}
+                                        className="
+                                            inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 
+                                            text-sm font-bold text-white/80 bg-white/5 hover:bg-white/10 
+                                            border border-white/10 hover:border-white/20
+                                            rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]
+                                        "
+                                    >
+                                        <X className="w-4 h-4" />
+                                        <span className="hidden sm:inline">Remove from Selected</span>
+                                        <span className="sm:hidden">Remove</span>
+                                    </button>
+                                )}
+
+                                {/* Clear All Discounts Button */}
+                                <button
+                                    onClick={handleRemoveAllDiscounts}
+                                    disabled={isApplying || products.filter(p => p.discount && p.discount > 0).length === 0}
+                                    className="
+                                        inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 
+                                        text-sm font-bold rounded-xl transition-all duration-200 
+                                        hover:scale-[1.02] active:scale-[0.98]
+                                        text-rose-400/80 hover:text-rose-400 
+                                        bg-rose-500/5 hover:bg-rose-500/10 
+                                        border border-rose-500/10 hover:border-rose-500/20
+                                        disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100
+                                    "
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Clear All Discounts</span>
+                                    <span className="sm:hidden">Clear All</span>
+                                </button>
+                            </div>
+
+                            {/* Selected Items Counter */}
+                            <div className="flex items-center justify-between sm:justify-end lg:justify-end gap-3 sm:gap-4 p-3 sm:p-0 bg-white/5 sm:bg-transparent rounded-xl sm:rounded-none">
+                                <div className="flex flex-col items-start sm:items-end">
+                                    <span className="text-xs text-white/40 font-medium tracking-wider uppercase">Selected Items</span>
+                                    <div className="flex items-baseline gap-1.5 mt-0.5">
+                                        <span className={`text-xl sm:text-2xl font-black ${selectedIds.size > 0 ? 'text-emerald-400' : 'text-white/60'}`}>
+                                            {selectedIds.size}
+                                        </span>
+                                        <span className="text-sm text-white/40 font-medium">
+                                            of {filteredProducts.length}
+                                        </span>
+                                    </div>
+                                </div>
+                                {/* Progress Ring (Mobile) */}
+                                <div className="sm:hidden relative w-12 h-12">
+                                    <svg className="w-12 h-12 -rotate-90" viewBox="0 0 40 40">
+                                        <circle
+                                            cx="20" cy="20" r="16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="3"
+                                            className="text-white/10"
+                                        />
+                                        <circle
+                                            cx="20" cy="20" r="16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="3"
+                                            strokeLinecap="round"
+                                            strokeDasharray={`${(selectedIds.size / Math.max(filteredProducts.length, 1)) * 100} 100`}
+                                            className="text-emerald-400 transition-all duration-500"
+                                        />
+                                    </svg>
+                                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white/80">
+                                        {filteredProducts.length > 0 ? Math.round((selectedIds.size / filteredProducts.length) * 100) : 0}%
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -666,16 +851,16 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredProducts.map(product => {
                     const isSelected = selectedIds.has(product.id);
-                    const hasDiscount = product.discount && product.discount > 0;
-                    const discountedPrice = hasDiscount ? Math.round(product.price * (1 - (product.discount || 0) / 100)) : product.price;
+                    const hasDiscount = product.discount != null && product.discount > 0;
+                    const discountedPrice = hasDiscount ? Math.round(product.price * (1 - product.discount / 100)) : product.price;
 
                     return (
                         <div
                             key={product.id}
                             onClick={() => toggleSelect(product.id)}
                             className={`group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 border ${isSelected
-                                    ? 'bg-emerald-900/20 border-emerald-500/40 ring-2 ring-emerald-500/30'
-                                    : 'bg-neutral-900/40 border-white/5 hover:border-white/10 hover:bg-neutral-900/60'
+                                ? 'bg-emerald-900/20 border-emerald-500/40 ring-2 ring-emerald-500/30'
+                                : 'bg-neutral-900/40 border-white/5 hover:border-white/10 hover:bg-neutral-900/60'
                                 }`}
                         >
                             {/* Selection Checkbox */}
@@ -688,8 +873,8 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                                 )}
                             </div>
 
-                            {/* Discount Badge */}
-                            {hasDiscount && (
+                            {/* Discount Badge - Only show when discount is actually greater than 0 */}
+                            {(hasDiscount) && (
                                 <div className="absolute top-3 right-3 z-10 px-2 py-1 bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg">
                                     {product.discount}% OFF
                                 </div>
