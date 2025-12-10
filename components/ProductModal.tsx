@@ -108,11 +108,13 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
     targetAudience: 'Unisex',
   });
   const [uploading, setUploading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initialProduct) {
       setFormData(initialProduct);
+      setSelectedFiles([]); // Clear selected files when editing
     } else {
       // Reset for new product
       setFormData({
@@ -127,6 +129,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
         colors: [],
         targetAudience: 'Unisex',
       });
+      setSelectedFiles([]); // Clear selected files for new product
     }
   }, [initialProduct, isOpen]);
 
@@ -147,49 +150,25 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      setUploading(true);
-      if (!e.target.files || e.target.files.length === 0) {
-        return;
-      }
-
-      const file = e.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath);
-
-      setFormData(prev => {
-        const newImages = [...(prev.images || []), publicUrl];
-        console.log('Updated images array:', newImages); // Debug log
-        return {
-          ...prev,
-          images: newImages,
-          image: prev.image || publicUrl // Set main image if not set
-        };
-      });
-
-      // Clear the file input to allow uploading the same file again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch (error) {
-      alert('Error uploading image!');
-      console.error(error);
-    } finally {
-      setUploading(false);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) {
+      return;
+    }
+    
+    const files = Array.from(e.target.files);
+    console.log('Files selected for later upload:', files.map(f => f.name));
+    setSelectedFiles(prev => [...prev, ...files]);
+    
+    // Create preview URLs for immediate display
+    const previewUrls = files.map(file => URL.createObjectURL(file));
+    setFormData(prev => ({
+      ...prev,
+      images: [...(prev.images || []), ...previewUrls]
+    }));
+    
+    // Clear the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -197,11 +176,25 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
     setFormData(prev => {
       const newImages = [...(prev.images || [])];
       newImages.splice(index, 1);
+      
+      // Also remove from selected files if it's a preview URL
+      const removedImage = prev.images?.[index];
+      if (removedImage && removedImage.startsWith('blob:')) {
+        URL.revokeObjectURL(removedImage); // Clean up blob URL
+      }
+      
       return {
         ...prev,
         images: newImages,
         image: newImages.length > 0 ? newImages[0] : ''
       };
+    });
+    
+    // Also remove from selected files array
+    setSelectedFiles(prev => {
+      const newFiles = [...prev];
+      newFiles.splice(index, 1);
+      return newFiles;
     });
   };
 
@@ -213,9 +206,83 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
+    if (selectedFiles.length > 0) {
+      setUploading(true);
+      try {
+        console.log('Starting upload of', selectedFiles.length, 'files...');
+        
+        // First check if bucket exists
+        const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+        if (bucketError) {
+          console.error('Error listing buckets:', bucketError);
+          throw bucketError;
+        }
+        
+        const productImagesBucket = buckets?.find(b => b.name === 'product-images');
+        if (!productImagesBucket) {
+          console.error('product-images bucket does not exist!');
+          throw new Error('product-images bucket does not exist. Please create it in Supabase dashboard.');
+        }
+        
+        // Upload all selected files
+        const uploadPromises = selectedFiles.map(async (file) => {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+          const filePath = `${fileName}`;
+          
+          console.log('Uploading file:', file.name, 'to path:', filePath);
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('product-images')
+            .upload(filePath, file);
+            
+          if (uploadError) {
+            console.error('Upload error for', file.name, ':', uploadError);
+            throw uploadError;
+          }
+          
+          console.log('Upload successful for', file.name, ':', uploadData);
+          
+          const { data: { publicUrl } } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath);
+            
+          console.log('Public URL for', file.name, ':', publicUrl);
+          return publicUrl;
+        });
+        
+        const uploadedUrls = await Promise.all(uploadPromises);
+        console.log('All files uploaded successfully:', uploadedUrls);
+        
+        // Update form data with uploaded URLs
+        setFormData(prev => ({
+          ...prev,
+          images: uploadedUrls,
+          image: uploadedUrls[0] || prev.image
+        }));
+        
+        // Clear selected files after successful upload
+        setSelectedFiles([]);
+        
+        // Continue with form submission after upload
+        await submitForm(uploadedUrls);
+        
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        alert('Error uploading images: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      } finally {
+        setUploading(false);
+      }
+    } else {
+      // No files to upload, submit form directly
+      await submitForm(formData.images || []);
+    }
+  };
+  
+  const submitForm = async (imageUrls: string[]) => {
     // Determine status
     let status: 'In Stock' | 'Low Stock' | 'Out of Stock' = 'In Stock';
     if ((formData.stock || 0) === 0) status = 'Out of Stock';
@@ -227,8 +294,8 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
       category: formData.category || 'General',
       price: formData.price || 0,
       stock: formData.stock || 0,
-      image: formData.image || '',
-      images: formData.images || [],
+      image: imageUrls[0] || '',
+      images: imageUrls,
       sizes: formData.sizes || [],
       colors: formData.colors || [],
       description: formData.description || '',
@@ -277,21 +344,33 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
                 <div className="sm:col-span-2 mb-4">
                   <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Product Images</label>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                    {formData.images?.map((img, index) => (
-                      <div key={index} className="relative group aspect-square bg-neutral-900/50 rounded-xl border border-white/10 overflow-hidden">
-                        <img src={img} alt={`Product ${index + 1}`} className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(index)}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                        {index === 0 && (
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-1 font-bold uppercase">Main</div>
-                        )}
+                    {formData.images && formData.images.length > 0 ? (
+                      formData.images.map((img, index) => (
+                        <div key={index} className="relative group aspect-square bg-neutral-900/50 rounded-xl border border-white/10 overflow-hidden">
+                          <img 
+                            src={img} 
+                            alt={`Product ${index + 1}`} 
+                            className="w-full h-full object-cover" 
+                            onLoad={() => console.log('Image loaded successfully:', img)}
+                            onError={() => console.error('Image failed to load:', img)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                          {index === 0 && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-1 font-bold uppercase">Main</div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="col-span-full text-center text-neutral-500 text-sm py-4">
+                        No images uploaded yet
                       </div>
-                    ))}
+                    )}
                     <div
                       onClick={handleImageClick}
                       className="aspect-square cursor-pointer bg-neutral-900/50 rounded-xl border border-white/10 border-dashed flex flex-col items-center justify-center hover:bg-neutral-800/50 transition-colors"
@@ -301,6 +380,13 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, in
                       </svg>
                       <span className="text-[10px] text-neutral-400 uppercase tracking-wider">{uploading ? '...' : 'Add'}</span>
                     </div>
+                  </div>
+                  {/* Debug info */}
+                  <div className="mt-2 text-xs text-neutral-600">
+                    Debug: Images count: {formData.images?.length || 0}
+                    {formData.images && formData.images.length > 0 && (
+                      <div>First image URL: {formData.images[0]}</div>
+                    )}
                   </div>
                   <input
                     type="file"

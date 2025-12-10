@@ -62,8 +62,21 @@ export const useDiscountCode = (): UseDiscountCodeReturn => {
     if (!discountCode) return;
 
     try {
-      await DiscountService.incrementUsage(discountCode.id);
-      // Discount has been successfully applied and usage tracked
+      // Use REST API directly to avoid Supabase client hanging
+      const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
+      
+      await fetch(`${supabaseUrl}/rest/v1/rpc/increment_discount_usage`, {
+        method: 'POST',
+        headers: {
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ code_id: discountCode.id })
+      });
+      
+      console.log('Discount usage tracked successfully');
     } catch (error) {
       console.error('Failed to track discount usage:', error);
       // Don't show error to user as discount was already applied

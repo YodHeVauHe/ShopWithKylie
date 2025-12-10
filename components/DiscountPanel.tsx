@@ -124,8 +124,10 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
             return;
         }
         
+        console.log('Starting discount code creation...');
         setIsCreatingCode(true);
         try {
+            console.log('Calling DiscountService.createDiscountCode...');
             const result = await DiscountService.createDiscountCode({
                 code: newCodeData.code || undefined,
                 discount_percentage: newCodeData.discount_percentage,
@@ -137,6 +139,8 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                 applicable_categories: newCodeData.applicable_categories.length > 0 ? newCodeData.applicable_categories : undefined,
                 created_by: userName || 'admin'
             });
+
+            console.log('Discount code creation result:', result);
 
             if (result.success) {
                 setNewCodeData({
@@ -153,12 +157,14 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                 loadDiscountCodes();
                 addToast('Discount code created successfully!', 'success');
             } else {
+                console.error('Discount code creation failed:', result.error);
                 addToast(result.error || 'Failed to create discount code', 'error');
             }
         } catch (error) {
             console.error('Error creating discount code:', error);
             addToast('Failed to create discount code', 'error');
         } finally {
+            console.log('Setting isCreatingCode to false');
             setIsCreatingCode(false);
         }
     };
@@ -279,23 +285,25 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
             </div>
 
             {/* Discount Codes Section */}
-            <div className="glass-panel rounded-2xl p-6 border border-violet-500/20 bg-gradient-to-r from-violet-900/20 to-purple-900/20">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-violet-500/20">
+            <div className="glass-panel rounded-2xl p-4 sm:p-6 border border-violet-500/20 bg-gradient-to-r from-violet-900/20 to-purple-900/20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="p-2 rounded-lg bg-violet-500/20 flex-shrink-0">
                             <Gift className="w-5 h-5 text-violet-400" />
                         </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-white">Checkout Discount Codes</h3>
-                            <p className="text-xs text-neutral-400">Generate and manage discount codes for checkout</p>
+                        <div className="min-w-0 flex-1">
+                            <h3 className="text-lg font-bold text-white truncate">Checkout Discount Codes</h3>
+                            <p className="text-xs text-neutral-400 sm:hidden">Generate & manage codes</p>
+                            <p className="text-xs text-neutral-400 hidden sm:block">Generate and manage discount codes for checkout</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setShowCodeGenerator(!showCodeGenerator)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all"
+                        className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all flex-shrink-0"
                     >
                         <Gift className="w-4 h-4" />
-                        {showCodeGenerator ? 'Hide Generator' : 'Generate Code'}
+                        <span className="hidden sm:inline">{showCodeGenerator ? 'Hide Generator' : 'Generate Code'}</span>
+                        <span className="sm:hidden">{showCodeGenerator ? 'Hide' : 'Gen'}</span>
                     </button>
                 </div>
 
@@ -420,62 +428,70 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                         </div>
                     ) : (
                         discountCodes.map((code) => (
-                            <div key={code.id} className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-white/5">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2 rounded-lg bg-violet-500/20">
-                                        <Gift className="w-4 h-4 text-violet-400" />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-white">{code.code}</span>
-                                            <span className="px-2 py-0.5 bg-violet-600 text-white text-xs font-bold rounded">
+                            <div key={code.id} className="bg-black/20 rounded-lg border border-white/5 overflow-hidden">
+                                {/* Main content - mobile-first layout */}
+                                <div className="p-3 sm:p-4">
+                                    {/* Header with code and status */}
+                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                        <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+                                            <span className="font-bold text-white text-sm sm:text-base truncate">{code.code}</span>
+                                            <span className="px-2 py-0.5 bg-violet-600 text-white text-xs font-bold rounded flex-shrink-0">
                                                 {code.discount_percentage}% OFF
                                             </span>
                                             {code.is_active ? (
-                                                <span className="px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded">
+                                                <span className="px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded flex-shrink-0">
                                                     Active
                                                 </span>
                                             ) : (
-                                                <span className="px-2 py-0.5 bg-rose-600 text-white text-xs font-bold rounded">
+                                                <span className="px-2 py-0.5 bg-rose-600 text-white text-xs font-bold rounded flex-shrink-0">
                                                     Inactive
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-4 mt-1 text-xs text-neutral-400">
-                                            {code.description && <span>{code.description}</span>}
-                                            {code.max_uses && (
-                                                <span className="flex items-center gap-1">
-                                                    <Users className="w-3 h-3" />
-                                                    {code.uses_count}/{code.max_uses} uses
-                                                </span>
-                                            )}
-                                            {code.expires_at && (
-                                                <span className="flex items-center gap-1">
-                                                    <Clock className="w-3 h-3" />
-                                                    Expires {new Date(code.expires_at).toLocaleDateString()}
-                                                </span>
-                                            )}
-                                            {code.minimum_amount && (
-                                                <span>Min: UGX {code.minimum_amount.toLocaleString()}</span>
-                                            )}
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                            <button
+                                                className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 transition-all"
+                                                onClick={() => handleCopyCode(code.code)}
+                                                title="Copy discount code"
+                                            >
+                                                <Copy className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                className="p-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 transition-all"
+                                                onClick={() => handleDeleteDiscountCode(code.id)}
+                                                title="Delete discount code"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 transition-all"
-                                        onClick={() => handleCopyCode(code.code)}
-                                        title="Copy discount code"
-                                    >
-                                        <Copy className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        className="p-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 transition-all"
-                                        onClick={() => handleDeleteDiscountCode(code.id)}
-                                        title="Delete discount code"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    
+                                    {/* Description */}
+                                    {code.description && (
+                                        <p className="text-xs text-neutral-400 mb-2 line-clamp-2">{code.description}</p>
+                                    )}
+                                    
+                                    {/* Details grid */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs text-neutral-400">
+                                        {code.max_uses && (
+                                            <div className="flex items-center gap-1">
+                                                <Users className="w-3 h-3 flex-shrink-0" />
+                                                <span>{code.uses_count}/{code.max_uses} uses</span>
+                                            </div>
+                                        )}
+                                        {code.expires_at && (
+                                            <div className="flex items-center gap-1">
+                                                <Clock className="w-3 h-3 flex-shrink-0" />
+                                                <span className="truncate">Expires {new Date(code.expires_at).toLocaleDateString()}</span>
+                                            </div>
+                                        )}
+                                        {code.minimum_amount && (
+                                            <div className="flex items-center gap-1 sm:col-span-2 lg:col-span-1">
+                                                <span className="font-medium">Min:</span>
+                                                <span className="truncate">UGX {code.minimum_amount.toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))
@@ -485,7 +501,7 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
 
             {/* Action Panel */}
             <div className="glass-panel rounded-2xl p-4 border border-emerald-500/20 bg-gradient-to-r from-emerald-900/20 to-teal-900/20">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                <div className="flex flex-col gap-4">
                     {/* Discount Percentage Input */}
                     <div className="flex items-center gap-3 flex-shrink-0">
                         <label className="text-sm font-medium text-neutral-300">Discount:</label>
@@ -503,12 +519,12 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                     </div>
 
                     {/* Quick Discount Buttons */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         {[10, 15, 20, 25, 30, 50].map(percent => (
                             <button
                                 key={percent}
                                 onClick={() => setDiscountPercentage(percent)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${discountPercentage === percent
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0 ${discountPercentage === percent
                                         ? 'bg-emerald-500 text-white'
                                         : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
                                     }`}
@@ -519,11 +535,11 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-3 lg:ml-auto">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                         <button
                             onClick={handleApplyDiscount}
                             disabled={selectedIds.size === 0 || isApplying}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${selectedIds.size === 0
+                            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${selectedIds.size === 0
                                     ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
                                     : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30 hover:shadow-emerald-900/50'
                                 }`}
@@ -535,7 +551,7 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                             <button
                                 onClick={handleRemoveDiscount}
                                 disabled={isApplying}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/20 transition-all"
+                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/20 transition-all"
                             >
                                 <X className="w-4 h-4" />
                                 Remove Discount
@@ -544,7 +560,7 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                         <button
                             onClick={handleRemoveAllDiscounts}
                             disabled={isApplying || products.filter(p => p.discount && p.discount > 0).length === 0}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Remove all discounts from products"
                         >
                             <Trash2 className="w-4 h-4" />
@@ -555,9 +571,9 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
             </div>
 
             {/* Filters and Search */}
-            <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/10 p-2 rounded-2xl flex flex-col lg:flex-row gap-3">
+            <div className="bg-neutral-900/50 backdrop-blur-xl border border-white/10 p-3 rounded-2xl flex flex-col gap-3">
                 {/* Search */}
-                <div className="relative lg:max-w-md">
+                <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                         <svg className="h-4 w-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -573,50 +589,52 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                 </div>
 
                 {/* Category Tabs */}
-                <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar lg:border-l lg:border-white/10 lg:pl-2">
-                    {categories.map(cat => (
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar">
+                        {categories.map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setFilterCategory(cat)}
+                                className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex-shrink-0 ${filterCategory === cat
+                                    ? 'bg-white text-black'
+                                    : 'text-neutral-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Discount Filter */}
+                    <div className="flex items-center space-x-1 sm:border-l sm:border-white/10 sm:pl-3">
                         <button
-                            key={cat}
-                            onClick={() => setFilterCategory(cat)}
-                            className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${filterCategory === cat
-                                ? 'bg-white text-black'
+                            onClick={() => setFilterDiscount('all')}
+                            className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex-shrink-0 ${filterDiscount === 'all'
+                                ? 'bg-violet-600 text-white'
                                 : 'text-neutral-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
-                            {cat}
+                            All
                         </button>
-                    ))}
-                </div>
-
-                {/* Discount Filter */}
-                <div className="flex items-center space-x-1 lg:border-l lg:border-white/10 lg:pl-2">
-                    <button
-                        onClick={() => setFilterDiscount('all')}
-                        className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${filterDiscount === 'all'
-                            ? 'bg-violet-600 text-white'
-                            : 'text-neutral-400 hover:text-white hover:bg-white/5'
-                            }`}
-                    >
-                        All
-                    </button>
-                    <button
-                        onClick={() => setFilterDiscount('discounted')}
-                        className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${filterDiscount === 'discounted'
-                            ? 'bg-emerald-600 text-white'
-                            : 'text-neutral-400 hover:text-white hover:bg-white/5'
-                            }`}
-                    >
-                        Discounted
-                    </button>
-                    <button
-                        onClick={() => setFilterDiscount('not-discounted')}
-                        className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${filterDiscount === 'not-discounted'
-                            ? 'bg-neutral-600 text-white'
-                            : 'text-neutral-400 hover:text-white hover:bg-white/5'
-                            }`}
-                    >
-                        No Discount
-                    </button>
+                        <button
+                            onClick={() => setFilterDiscount('discounted')}
+                            className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex-shrink-0 ${filterDiscount === 'discounted'
+                                ? 'bg-emerald-600 text-white'
+                                : 'text-neutral-400 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            Discounted
+                        </button>
+                        <button
+                            onClick={() => setFilterDiscount('not-discounted')}
+                            className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex-shrink-0 ${filterDiscount === 'not-discounted'
+                                ? 'bg-neutral-600 text-white'
+                                : 'text-neutral-400 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            No Discount
+                        </button>
+                    </div>
                 </div>
             </div>
 

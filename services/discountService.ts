@@ -25,31 +25,68 @@ export class DiscountService {
     created_by: string;
   }): Promise<{ success: boolean; data?: DiscountCode; error?: string }> {
     try {
+      console.log('DiscountService: Starting discount code creation...');
       const code = discountData.code || this.generateRandomCode();
+      console.log('DiscountService: Generated code:', code);
       
-      const { data, error } = await supabase
-        .from('discount_codes')
-        .insert([{
-          code: code.toUpperCase(),
-          discount_percentage: discountData.discount_percentage,
-          description: discountData.description,
-          max_uses: discountData.max_uses,
-          uses_count: 0,
-          is_active: true,
-          expires_at: discountData.expires_at,
-          minimum_amount: discountData.minimum_amount,
-          applicable_products: discountData.applicable_products,
-          applicable_categories: discountData.applicable_categories,
-          created_by: discountData.created_by,
-          created_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
+      // Get the current session to use the user's JWT token
+      console.log('DiscountService: Getting user session...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      console.log('DiscountService: Session result:', { session: session ? 'exists' : 'null', sessionError });
+      
+      if (sessionError || !session) {
+        console.error('DiscountService: Authentication error:', sessionError);
+        throw new Error('User must be authenticated to create discount codes');
+      }
+      
+      const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+      const authToken = session.access_token;
+      console.log('DiscountService: Auth token obtained, making API call...');
+      
+      const insertData = {
+        code: code.toUpperCase(),
+        discount_percentage: discountData.discount_percentage,
+        description: discountData.description || null,
+        max_uses: discountData.max_uses || null,
+        uses_count: 0,
+        is_active: true,
+        expires_at: discountData.expires_at || null,
+        minimum_amount: discountData.minimum_amount || null,
+        applicable_products: discountData.applicable_products || [],
+        applicable_categories: discountData.applicable_categories || [],
+        created_by: discountData.created_by,
+        created_at: new Date().toISOString()
+      };
 
-      if (error) throw error;
-      return { success: true, data };
+      console.log('DiscountService: Insert data:', insertData);
+
+      const response = await fetch(`${supabaseUrl}/rest/v1/discount_codes`, {
+        method: 'POST',
+        headers: {
+          'apikey': import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(insertData)
+      });
+
+      console.log('DiscountService: API response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('DiscountService: HTTP Error:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('DiscountService: API response data:', data);
+      const discountCode = Array.isArray(data) ? data[0] : data;
+      
+      return { success: true, data: discountCode };
     } catch (error) {
-      console.error('Error creating discount code:', error);
+      console.error('DiscountService: Error creating discount code:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to create discount code' };
     }
   }
@@ -166,12 +203,31 @@ export class DiscountService {
   // Delete/disable a discount code
   static async deleteDiscountCode(codeId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error } = await supabase
-        .from('discount_codes')
-        .update({ is_active: false })
-        .eq('id', codeId);
+      // Get the current session to use the user's JWT token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('User must be authenticated to delete discount codes');
+      }
+      
+      const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+      const authToken = session.access_token;
+      
+      const response = await fetch(`${supabaseUrl}/rest/v1/discount_codes?id=eq.${codeId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ is_active: false })
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
       return { success: true };
     } catch (error) {
       console.error('Error deleting discount code:', error);

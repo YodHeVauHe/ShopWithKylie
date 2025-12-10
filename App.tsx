@@ -312,8 +312,10 @@ const App: React.FC = () => {
   };
 
   const handleCheckoutStart = () => {
+    console.log('handleCheckoutStart called');
     setIsCartOpen(false);
     setCustomerView('checkout');
+    console.log('Set customerView to checkout');
   };
 
   const handleOrderSuccess = (orderId: string) => {

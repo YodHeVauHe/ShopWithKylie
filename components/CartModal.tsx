@@ -45,12 +45,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
   };
 
   const handleCheckout = async () => {
+    console.log('Checkout clicked, discountCode:', discountCode);
+    
     // Sync discount before checkout
     onDiscountApplied(discountCode);
     
     if (discountCode) {
+      console.log('Applying discount...');
       await applyDiscount();
     }
+    
+    console.log('Calling onCheckout...');
     onCheckout();
   };
 
@@ -203,14 +208,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, cartItems, onRem
                   <p className="text-white font-bold">UGX {subtotal.toLocaleString()}</p>
                 </div>
                 {discountAmount > 0 && (
-                  <div className="flex justify-between text-base font-medium text-emerald-400">
-                    <p>Discount ({discountCode?.code})</p>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-emerald-600/20 text-emerald-400 text-xs font-bold rounded">
+                  <div className="flex justify-between text-sm font-medium text-emerald-400 flex-wrap gap-1">
+                    <div className="flex items-center gap-1 text-xs">
+                      <span>Discount ({discountCode?.code})</span>
+                      <span className="px-1.5 py-0.5 bg-emerald-600/20 text-emerald-400 text-xs font-bold rounded">
                         {discountCode?.discount_percentage}% OFF
                       </span>
-                      <p className="font-bold">-UGX {discountAmount.toLocaleString()}</p>
                     </div>
+                    <p className="font-bold text-sm">-UGX {discountAmount.toLocaleString()}</p>
                   </div>
                 )}
                 <div className="flex justify-between text-base font-medium text-neutral-400">

@@ -337,13 +337,24 @@ const Checkout: React.FC<CheckoutProps> = ({ cart, total, onBack, onSuccess, use
                                 <span>Subtotal</span>
                                 <span>UGX {total.toLocaleString()}</span>
                             </div>
+                            {discountAmount > 0 && (
+                                <div className="flex justify-between text-emerald-400">
+                                    <div className="flex items-center gap-2">
+                                        <span>Discount ({discountCode?.code})</span>
+                                        <span className="px-2 py-0.5 bg-emerald-600/20 text-emerald-400 text-xs font-bold rounded">
+                                            {discountCode?.discount_percentage}% OFF
+                                        </span>
+                                    </div>
+                                    <span className="font-bold">-UGX {discountAmount.toLocaleString()}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between text-neutral-400">
                                 <span>Shipping</span>
                                 <span>Free</span>
                             </div>
                             <div className="flex justify-between text-xl font-bold text-white pt-2 border-t border-white/10 mt-2">
                                 <span>Total</span>
-                                <span>UGX {total.toLocaleString()}</span>
+                                <span>UGX {finalTotal.toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
