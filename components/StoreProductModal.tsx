@@ -80,9 +80,9 @@ const StoreProductModal: React.FC<StoreProductModalProps> = ({ product, isOpen, 
                       `}
                                         >
                                             <div className="w-full h-full flex items-center justify-center bg-neutral-900">
-                                                <img 
-                                                    src={img} 
-                                                    alt={`View ${idx + 1}`} 
+                                                <img
+                                                    src={img}
+                                                    alt={`View ${idx + 1}`}
                                                     className="max-w-full max-h-full object-contain"
                                                     style={{ objectPosition: 'center' }}
                                                 />
@@ -101,15 +101,43 @@ const StoreProductModal: React.FC<StoreProductModalProps> = ({ product, isOpen, 
 
                             <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 tracking-tight">{product.name}</h2>
 
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="flex items-center gap-1.5 bg-violet-500/20 border border-violet-500/30 px-3 py-1.5 rounded-full">
-                                    <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                    </svg>
-                                    <span className="text-sm font-bold text-violet-300">
-                                        UGX {product.price.toLocaleString()}
-                                    </span>
-                                </div>
+                            <div className="flex items-center gap-4 mb-6 flex-wrap">
+                                {product.discount && product.discount > 0 ? (
+                                    <>
+                                        {/* Original Price - Crossed Out */}
+                                        <div className="flex items-center gap-1.5 opacity-60">
+                                            <svg className="w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                            </svg>
+                                            <span className="text-sm font-medium text-neutral-400 line-through">
+                                                UGX {product.price.toLocaleString()}
+                                            </span>
+                                        </div>
+                                        {/* Discount Badge */}
+                                        <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-full border border-emerald-500/30">
+                                            {product.discount}% OFF
+                                        </span>
+                                        {/* Discounted Price */}
+                                        <div className="flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-500/30 px-3 py-1.5 rounded-full">
+                                            <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                            </svg>
+                                            <span className="text-sm font-bold text-emerald-300">
+                                                UGX {Math.round(product.price * (1 - product.discount / 100)).toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    /* Regular Price (No Discount) */
+                                    <div className="flex items-center gap-1.5 bg-violet-500/20 border border-violet-500/30 px-3 py-1.5 rounded-full">
+                                        <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                        </svg>
+                                        <span className="text-sm font-bold text-violet-300">
+                                            UGX {product.price.toLocaleString()}
+                                        </span>
+                                    </div>
+                                )}
                                 {product.stock < 15 && product.stock > 0 && (
                                     <span className="px-3 py-1 bg-amber-500/10 text-amber-400 text-xs font-bold uppercase tracking-wider rounded-full border border-amber-500/20">
                                         Low Stock: {product.stock} left

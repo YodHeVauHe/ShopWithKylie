@@ -7,6 +7,7 @@ import ProductModal from './components/ProductModal';
 import Shop from './components/Shop';
 import CartModal from './components/CartModal';
 import LoginModal from './components/LoginModal';
+import DiscountPanel from './components/DiscountPanel';
 import { Product, ViewState, ToastMessage, ToastType, CartItem } from './types';
 import { SALES_DATA, CATEGORY_DATA } from './constants';
 import { CheckCircle, XCircle, Info, X, Trash2, AlertTriangle } from 'lucide-react';
@@ -128,7 +129,7 @@ const App: React.FC = () => {
   const handleDeleteProduct = async (id: string) => {
     const toastId = Date.now().toString();
     const product = products.find(p => p.id === id);
-    
+
     // Add confirmation toast
     setToasts(prev => [...prev, {
       id: toastId,
@@ -217,6 +218,49 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Error saving product:', error);
       addToast("Failed to save product", ToastType.ERROR);
+    }
+  };
+
+  // --- Discount Logic ---
+  const handleApplyDiscount = async (productIds: string[], discountPercentage: number) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ discount: discountPercentage })
+        .in('id', productIds);
+
+      if (error) throw error;
+
+      // Update local state
+      setProducts(prev => prev.map(p =>
+        productIds.includes(p.id) ? { ...p, discount: discountPercentage } : p
+      ));
+
+      addToast(`Applied ${discountPercentage}% discount to ${productIds.length} product${productIds.length > 1 ? 's' : ''}`, ToastType.SUCCESS);
+    } catch (error) {
+      console.error('Error applying discount:', error);
+      addToast('Failed to apply discount', ToastType.ERROR);
+    }
+  };
+
+  const handleRemoveDiscount = async (productIds: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ discount: 0 })
+        .in('id', productIds);
+
+      if (error) throw error;
+
+      // Update local state
+      setProducts(prev => prev.map(p =>
+        productIds.includes(p.id) ? { ...p, discount: 0 } : p
+      ));
+
+      addToast(`Removed discount from ${productIds.length} product${productIds.length > 1 ? 's' : ''}`, ToastType.SUCCESS);
+    } catch (error) {
+      console.error('Error removing discount:', error);
+      addToast('Failed to remove discount', ToastType.ERROR);
     }
   };
 
@@ -403,6 +447,14 @@ const App: React.FC = () => {
               onDeleteProduct={handleDeleteProduct}
             />
           )}
+
+          {currentView === 'discounts' && (
+            <DiscountPanel
+              products={products}
+              onApplyDiscount={handleApplyDiscount}
+              onRemoveDiscount={handleRemoveDiscount}
+            />
+          )}
         </main>
       </div>
 
@@ -445,20 +497,19 @@ const ToastContainer = ({ toasts }: { toasts: ToastMessage[] }) => {
       {toasts.map(toast => (
         <div
           key={toast.id}
-          className={`pointer-events-auto flex items-center gap-3 w-full max-w-sm p-4 rounded-xl shadow-2xl text-white transform transition-all duration-300 ease-in-out translate-y-0 opacity-100 backdrop-blur-xl border border-white/10 ${
-            toast.type === ToastType.SUCCESS ? 'bg-emerald-900/90 text-emerald-100 border-emerald-500/20' :
-            toast.type === ToastType.ERROR ? 'bg-rose-900/90 text-rose-100 border-rose-500/20' : 'bg-neutral-800/90 text-neutral-200 border-neutral-500/20'
-          }`}
+          className={`pointer-events-auto flex items-center gap-3 w-full max-w-sm p-4 rounded-xl shadow-2xl text-white transform transition-all duration-300 ease-in-out translate-y-0 opacity-100 backdrop-blur-xl border border-white/10 ${toast.type === ToastType.SUCCESS ? 'bg-emerald-900/90 text-emerald-100 border-emerald-500/20' :
+              toast.type === ToastType.ERROR ? 'bg-rose-900/90 text-rose-100 border-rose-500/20' : 'bg-neutral-800/90 text-neutral-200 border-neutral-500/20'
+            }`}
         >
           {/* Icon */}
           <div className="flex-shrink-0">
             {getIcon(toast.type)}
           </div>
-          
+
           {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium leading-tight">{toast.message}</div>
-            
+
             {/* Action Buttons */}
             {(toast.action || toast.dismiss) && (
               <div className="flex gap-2 mt-3">
@@ -474,11 +525,10 @@ const ToastContainer = ({ toasts }: { toasts: ToastMessage[] }) => {
                 {toast.action && (
                   <button
                     onClick={toast.action.onClick}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
-                      toast.action.variant === 'danger' 
-                        ? 'bg-rose-500/80 hover:bg-rose-500 text-white border border-rose-400/30' 
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${toast.action.variant === 'danger'
+                        ? 'bg-rose-500/80 hover:bg-rose-500 text-white border border-rose-400/30'
                         : 'bg-white/90 hover:bg-white text-black border border-white/20'
-                    }`}
+                      }`}
                   >
                     {getActionIcon(toast.action.label)}
                     {toast.action.label}

@@ -11,6 +11,7 @@ export interface Product {
   images?: string[];
   sizes?: string[];
   colors?: string[];
+  discount?: number; // Discount percentage (0-100)
 }
 
 export interface CartItem extends Product {
@@ -29,7 +30,7 @@ export interface CategoryData {
   color: string;
 }
 
-export type ViewState = 'dashboard' | 'inventory';
+export type ViewState = 'dashboard' | 'inventory' | 'discounts';
 
 export enum ToastType {
   SUCCESS = 'success',

@@ -32,6 +32,28 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
             </h1>
           </div>
 
+          <div className="lg:hidden mb-4">
+            <a
+              href="/"
+              className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 text-neutral-400 hover:bg-white/5 hover:text-white border border-white/10"
+            >
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+              Back to Store
+            </a>
+          </div>
           <nav className="flex-1 space-y-2">
             {NAV_ITEMS.map((item) => (
               <button

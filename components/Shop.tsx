@@ -153,31 +153,77 @@ const Shop: React.FC<ShopProps> = ({ products, onAddToCart }) => {
                   </h3>
                   <p className="text-xs text-neutral-500 mt-1">{product.category}</p>
                 </div>
-                
-                {/* Price Tag with Icon */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1 bg-violet-500/20 border border-violet-500/30 px-2 py-1 rounded-full whitespace-nowrap">
-                    <Tag className="w-3 h-3 text-violet-400 flex-shrink-0" />
-                    <span className="text-xs font-bold text-violet-300 truncate">
-                      UGX {product.price.toLocaleString()}
-                    </span>
-                  </div>
-                  
-                  {/* Add to Cart Button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAddToCart(product);
-                    }}
-                    className={`p-1.5 rounded-lg transition-all transform hover:scale-105 flex-shrink-0 ${
-                      product.stock === 0
-                        ? 'bg-neutral-800 text-neutral-600 cursor-not-allowed'
-                        : 'bg-violet-500 hover:bg-violet-400 text-white shadow-lg hover:shadow-violet-500/25'
-                    }`}
-                    title="Add to Cart"
-                  >
-                    <ShoppingCart className="w-3 h-3" />
-                  </button>
+
+                {/* Price Tag with Discount */}
+                <div className="flex flex-col gap-1.5">
+                  {product.discount && product.discount > 0 ? (
+                    <>
+                      {/* Original Price Row */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Original Price - Crossed Out */}
+                        <div className="flex items-center gap-1 opacity-60">
+                          <Tag className="w-3 h-3 text-neutral-400 flex-shrink-0" />
+                          <span className="text-xs font-medium text-neutral-400 line-through">
+                            UGX {product.price.toLocaleString()}
+                          </span>
+                        </div>
+                        {/* Discount Badge */}
+                        <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-md border border-emerald-500/30">
+                          {product.discount}% OFF
+                        </span>
+                      </div>
+
+                      {/* Discounted Price Row */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/30 px-2 py-1 rounded-full whitespace-nowrap">
+                          <Tag className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                          <span className="text-xs font-bold text-emerald-300 truncate">
+                            UGX {Math.round(product.price * (1 - product.discount / 100)).toLocaleString()}
+                          </span>
+                        </div>
+
+                        {/* Add to Cart Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAddToCart(product);
+                          }}
+                          className={`p-1.5 rounded-lg transition-all transform hover:scale-105 flex-shrink-0 ${product.stock === 0
+                            ? 'bg-neutral-800 text-neutral-600 cursor-not-allowed'
+                            : 'bg-violet-500 hover:bg-violet-400 text-white shadow-lg hover:shadow-violet-500/25'
+                            }`}
+                          title="Add to Cart"
+                        >
+                          <ShoppingCart className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    /* Regular Price (No Discount) */
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1 bg-violet-500/20 border border-violet-500/30 px-2 py-1 rounded-full whitespace-nowrap">
+                        <Tag className="w-3 h-3 text-violet-400 flex-shrink-0" />
+                        <span className="text-xs font-bold text-violet-300 truncate">
+                          UGX {product.price.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Add to Cart Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddToCart(product);
+                        }}
+                        className={`p-1.5 rounded-lg transition-all transform hover:scale-105 flex-shrink-0 ${product.stock === 0
+                          ? 'bg-neutral-800 text-neutral-600 cursor-not-allowed'
+                          : 'bg-violet-500 hover:bg-violet-400 text-white shadow-lg hover:shadow-violet-500/25'
+                          }`}
+                        title="Add to Cart"
+                      >
+                        <ShoppingCart className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
