@@ -7,12 +7,16 @@ interface DiscountPanelProps {
     products: Product[];
     onApplyDiscount: (productIds: string[], discount: number) => Promise<void>;
     onRemoveDiscount: (productIds: string[]) => Promise<void>;
+    addToast: (message: string, type: 'success' | 'error' | 'info') => void;
+    userName?: string;
 }
 
 const DiscountPanel: React.FC<DiscountPanelProps> = ({
     products,
     onApplyDiscount,
     onRemoveDiscount,
+    addToast,
+    userName = 'admin',
 }) => {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [discountPercentage, setDiscountPercentage] = useState<number>(20);
@@ -115,6 +119,11 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
     };
 
     const handleCreateDiscountCode = async () => {
+        if (!newCodeData.code) {
+            addToast('Please enter a discount code', 'error');
+            return;
+        }
+        
         setIsCreatingCode(true);
         try {
             const result = await DiscountService.createDiscountCode({
@@ -126,7 +135,7 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                 minimum_amount: newCodeData.minimum_amount ? parseInt(newCodeData.minimum_amount) : undefined,
                 applicable_products: newCodeData.applicable_products.length > 0 ? newCodeData.applicable_products : undefined,
                 applicable_categories: newCodeData.applicable_categories.length > 0 ? newCodeData.applicable_categories : undefined,
-                created_by: 'current_user' // This should come from auth context
+                created_by: userName || 'admin'
             });
 
             if (result.success) {
@@ -142,7 +151,13 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                 });
                 setShowCodeGenerator(false);
                 loadDiscountCodes();
+                addToast('Discount code created successfully!', 'success');
+            } else {
+                addToast(result.error || 'Failed to create discount code', 'error');
             }
+        } catch (error) {
+            console.error('Error creating discount code:', error);
+            addToast('Failed to create discount code', 'error');
         } finally {
             setIsCreatingCode(false);
         }
@@ -150,10 +165,36 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
 
     const handleDeleteDiscountCode = async (codeId: string) => {
         try {
-            await DiscountService.deleteDiscountCode(codeId);
-            loadDiscountCodes();
+            const result = await DiscountService.deleteDiscountCode(codeId);
+            if (result.success) {
+                loadDiscountCodes();
+                addToast('Discount code deleted successfully', 'success');
+            } else {
+                addToast(result.error || 'Failed to delete discount code', 'error');
+            }
         } catch (error) {
             console.error('Failed to delete discount code:', error);
+            addToast('Failed to delete discount code', 'error');
+        }
+    };
+
+    const handleRemoveAllDiscounts = async () => {
+        const discountedProducts = products.filter(p => p.discount && p.discount > 0);
+        if (discountedProducts.length === 0) {
+            addToast('No products have discounts to remove', 'info');
+            return;
+        }
+        
+        setIsApplying(true);
+        try {
+            const discountedProductIds = discountedProducts.map(p => p.id);
+            await onRemoveDiscount(discountedProductIds);
+            addToast(`Removed discounts from ${discountedProductIds.length} products`, 'success');
+        } catch (error) {
+            console.error('Error removing all discounts:', error);
+            addToast('Failed to remove discounts', 'error');
+        } finally {
+            setIsApplying(false);
         }
     };
 
@@ -483,6 +524,15 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                                 Remove Discount
                             </button>
                         )}
+                        <button
+                            onClick={handleRemoveAllDiscounts}
+                            disabled={isApplying || products.filter(p => p.discount && p.discount > 0).length === 0}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Remove all discounts from products"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Remove All
+                        </button>
                     </div>
                 </div>
             </div>

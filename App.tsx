@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './services/supabase';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -13,6 +13,14 @@ import OrderTracking from './components/OrderTracking';
 import { Product, ViewState, ToastMessage, ToastType, CartItem, UserProfile } from './types';
 import { SALES_DATA, CATEGORY_DATA } from './constants';
 import { CheckCircle, XCircle, Info, X, Trash2, AlertTriangle } from 'lucide-react';
+import {
+  useProducts,
+  useCreateProduct,
+  useUpdateProduct,
+  useDeleteProduct,
+  useApplyDiscount,
+  useRemoveDiscount
+} from './hooks/useProducts';
 
 const App: React.FC = () => {
   // App Mode State: 'customer' or 'admin'
@@ -35,37 +43,39 @@ const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  // Shared Data
-  const [products, setProducts] = useState<Product[]>([]);
+  // Toast State
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  // --- TanStack Query Hooks (Best Practice) ---
+  const {
+    data: products = [],
+    isLoading,
+    error: productsError,
+    refetch: refetchProducts
+  } = useProducts();
+
+  
+  const createProductMutation = useCreateProduct();
+  const updateProductMutation = useUpdateProduct();
+  const deleteProductMutation = useDeleteProduct();
+  const applyDiscountMutation = useApplyDiscount();
+  const removeDiscountMutation = useRemoveDiscount();
+
   // --- Toast Logic ---
-  const addToast = (message: string, type: ToastType = ToastType.INFO) => {
+  const addToast = useCallback((message: string, type: ToastType = ToastType.INFO) => {
     const id = Date.now().toString();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
-  };
-
-  // --- Data Fetching ---
-  const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching products:', error);
-      addToast('Failed to load products', ToastType.ERROR);
-    } else {
-      setProducts(data || []);
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts();
   }, []);
+
+  // Show error toast if products failed to load
+  useEffect(() => {
+    if (productsError) {
+      addToast(`Failed to load products: ${productsError.message}`, ToastType.ERROR);
+    }
+  }, [productsError, addToast]);
 
   // --- Auth Logic ---
   useEffect(() => {
@@ -123,10 +133,39 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    // setIsAuthenticated(false); // Handled by listener
-    // setAppMode('customer'); // Handled by listener
-    addToast("Logged out successfully", ToastType.INFO);
+    console.log('Logout clicked - starting logout process');
+
+    // Immediately update local state first (don't wait for Supabase)
+    setIsAuthenticated(false);
+    setAppMode('customer');
+    setUserName('Admin User');
+    setUserProfile(null);
+
+    addToast("Logging out...", ToastType.INFO);
+
+    try {
+      // Set a timeout for the signOut call
+      const signOutPromise = supabase.auth.signOut();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Logout timeout')), 5000)
+      );
+
+      const { error } = await Promise.race([signOutPromise, timeoutPromise]) as { error: any };
+      console.log('Logout result:', { error });
+
+      if (error) {
+        console.error('Logout error:', error);
+        // State already cleared, just notify
+        addToast("Logged out (with warning)", ToastType.SUCCESS);
+      } else {
+        console.log('Logout successful');
+        addToast("Logged out successfully", ToastType.SUCCESS);
+      }
+    } catch (error) {
+      console.error('Logout error or timeout:', error);
+      // State already cleared, user is effectively logged out locally
+      addToast("Logged out successfully", ToastType.SUCCESS);
+    }
   };
 
   // --- Admin Logic ---
@@ -154,8 +193,11 @@ const App: React.FC = () => {
         onClick: () => {
           // Remove confirmation toast
           setToasts(prev => prev.filter(t => t.id !== toastId));
-          // Proceed with deletion
-          deleteProduct(id);
+          // Proceed with deletion using mutation
+          deleteProductMutation.mutate(id, {
+            onSuccess: () => addToast("Product deleted successfully", ToastType.SUCCESS),
+            onError: () => addToast("Failed to delete product", ToastType.ERROR),
+          });
         },
         variant: 'danger'
       },
@@ -169,113 +211,73 @@ const App: React.FC = () => {
     }]);
   };
 
-  const deleteProduct = async (id: string) => {
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting product:', error);
-      addToast("Failed to delete product", ToastType.ERROR);
-    } else {
-      setProducts(prev => prev.filter(p => p.id !== id));
-      addToast("Product deleted successfully", ToastType.SUCCESS);
-    }
-  };
-
   const handleSaveProduct = async (product: Product) => {
     try {
       if (editingProduct) {
-        // Update existing
-        const { error } = await supabase
-          .from('products')
-          .update({
-            name: product.name,
-            category: product.category,
-            price: product.price,
-            stock: product.stock,
-            image: product.image,
-            images: product.images,
-            sizes: product.sizes,
-            colors: product.colors,
-            description: product.description,
-            status: product.status
-          })
-          .eq('id', product.id);
-
-        if (error) throw error;
+        // Update existing using mutation
+        await updateProductMutation.mutateAsync({
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          price: product.price,
+          stock: product.stock,
+          image: product.image,
+          images: product.images,
+          sizes: product.sizes,
+          colors: product.colors,
+          description: product.description,
+          status: product.status
+        });
         addToast("Product updated successfully", ToastType.SUCCESS);
       } else {
-        // Create new
-        const { error } = await supabase
-          .from('products')
-          .insert([{
-            name: product.name,
-            category: product.category,
-            price: product.price,
-            stock: product.stock,
-            image: product.image,
-            images: product.images,
-            sizes: product.sizes,
-            colors: product.colors,
-            description: product.description,
-            status: product.status
-          }]);
-
-        if (error) throw error;
+        // Create new using mutation
+        await createProductMutation.mutateAsync({
+          name: product.name,
+          category: product.category,
+          price: product.price,
+          stock: product.stock,
+          image: product.image,
+          images: product.images,
+          sizes: product.sizes,
+          colors: product.colors,
+          description: product.description,
+          status: product.status
+        });
         addToast("Product added successfully", ToastType.SUCCESS);
       }
 
       setIsProductModalOpen(false);
-      fetchProducts(); // Refresh list
+      // No need to manually refetch - TanStack Query handles cache invalidation
     } catch (error) {
       console.error('Error saving product:', error);
       addToast("Failed to save product", ToastType.ERROR);
     }
   };
 
-  // --- Discount Logic ---
+  // --- Discount Logic (using mutations) ---
   const handleApplyDiscount = async (productIds: string[], discountPercentage: number) => {
-    try {
-      const { error } = await supabase
-        .from('products')
-        .update({ discount: discountPercentage })
-        .in('id', productIds);
-
-      if (error) throw error;
-
-      // Update local state
-      setProducts(prev => prev.map(p =>
-        productIds.includes(p.id) ? { ...p, discount: discountPercentage } : p
-      ));
-
-      addToast(`Applied ${discountPercentage}% discount to ${productIds.length} product${productIds.length > 1 ? 's' : ''}`, ToastType.SUCCESS);
-    } catch (error) {
-      console.error('Error applying discount:', error);
-      addToast('Failed to apply discount', ToastType.ERROR);
-    }
+    applyDiscountMutation.mutate(
+      { productIds, discountPercentage },
+      {
+        onSuccess: () => {
+          addToast(`Applied ${discountPercentage}% discount to ${productIds.length} product${productIds.length > 1 ? 's' : ''}`, ToastType.SUCCESS);
+        },
+        onError: () => {
+          addToast('Failed to apply discount', ToastType.ERROR);
+        }
+      }
+    );
   };
 
   const handleRemoveDiscount = async (productIds: string[]) => {
-    try {
-      const { error } = await supabase
-        .from('products')
-        .update({ discount: 0 })
-        .in('id', productIds);
-
-      if (error) throw error;
-
-      // Update local state
-      setProducts(prev => prev.map(p =>
-        productIds.includes(p.id) ? { ...p, discount: 0 } : p
-      ));
-
-      addToast(`Removed discount from ${productIds.length} product${productIds.length > 1 ? 's' : ''}`, ToastType.SUCCESS);
-    } catch (error) {
-      console.error('Error removing discount:', error);
-      addToast('Failed to remove discount', ToastType.ERROR);
-    }
+    removeDiscountMutation.mutate(productIds, {
+      onSuccess: () => {
+        addToast(`Removed discount from ${productIds.length} product${productIds.length > 1 ? 's' : ''}`, ToastType.SUCCESS);
+      },
+      onError: () => {
+        addToast('Failed to remove discount', ToastType.ERROR);
+      }
+    });
   };
 
   // --- Customer Logic ---
@@ -497,6 +499,8 @@ const App: React.FC = () => {
               products={products}
               onApplyDiscount={handleApplyDiscount}
               onRemoveDiscount={handleRemoveDiscount}
+              addToast={addToast}
+              userName={userName}
             />
           )}
         </main>
