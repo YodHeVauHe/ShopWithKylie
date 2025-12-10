@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell, Legend, BarChart, Bar
 } from 'recharts';
 import { Product } from '../types';
-import { TrendingUp, Package, AlertTriangle, XCircle, DollarSign, ShoppingCart, Users, Activity } from 'lucide-react';
+import { TrendingUp, Package, AlertTriangle, XCircle, DollarSign, ShoppingCart, Users, Activity, Percent } from 'lucide-react';
 
 interface DashboardProps {
   products: Product[];
@@ -18,8 +18,12 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
     const lowStockCount = products.filter(p => p.stock < 15 && p.stock > 0).length;
     const outOfStockCount = products.filter(p => p.stock === 0).length;
     const totalProducts = products.length;
-    const totalValue = products.reduce((acc, curr) => acc + (curr.price * curr.stock), 0);
+    const totalValue = products.reduce((acc, curr) => {
+      const discountedPrice = curr.discount ? curr.price * (1 - curr.discount / 100) : curr.price;
+      return acc + (discountedPrice * curr.stock);
+    }, 0);
     const avgPrice = products.length > 0 ? products.reduce((acc, curr) => acc + curr.price, 0) / products.length : 0;
+    const discountedCount = products.filter(p => p.discount && p.discount > 0).length;
     
     // Generate category distribution from real products
     const categoryCounts = products.reduce((acc, product) => {
@@ -67,6 +71,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
       totalProducts,
       totalValue,
       avgPrice,
+      discountedCount,
       categoryData,
       salesData,
       stockLevels,
@@ -111,13 +116,13 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
           subtitle="Needs restock"
         />
         <MetricCard 
-          title="Out of Stock" 
-          value={dashboardData.outOfStockCount} 
-          icon={<XCircle className="w-5 h-5" />}
-          color="text-rose-400" 
-          bg="bg-rose-500/10" 
-          border="border-rose-500/20"
-          subtitle="Unavailable"
+          title="Discounted Products" 
+          value={dashboardData.discountedCount} 
+          icon={<Percent className="w-5 h-5" />}
+          color="text-cyan-400" 
+          bg="bg-cyan-500/10" 
+          border="border-cyan-500/20"
+          subtitle="On sale"
         />
       </div>
 

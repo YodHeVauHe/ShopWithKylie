@@ -21,10 +21,13 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
     setLoading(true);
 
     try {
+      console.log('Attempting login with:', email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
+      console.log('Login response:', { error: error?.message });
 
       if (error) {
         throw error;
@@ -34,6 +37,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
       setEmail('');
       setPassword('');
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message || 'Invalid email or password');
     } finally {
       setLoading(false);

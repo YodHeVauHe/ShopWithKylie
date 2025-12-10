@@ -13,13 +13,10 @@ export const productKeys = {
 
 // Fetch all products
 async function fetchProducts(): Promise<Product[]> {
-    console.log('fetchProducts called');
     try {
         // Use REST API directly with environment variables
         const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
         const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
-        
-        console.log('Making REST API call to:', supabaseUrl);
         
         const response = await fetch(`${supabaseUrl}/rest/v1/products?order=created_at.desc`, {
             method: 'GET',
@@ -30,16 +27,12 @@ async function fetchProducts(): Promise<Product[]> {
             }
         });
 
-        console.log('REST API response status:', response.status);
-
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('REST API error:', response.status, errorText);
             throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
         const data = await response.json();
-        console.log('Successfully fetched products via REST API:', data.length);
         return data;
     } catch (err) {
         console.error('Error fetching products:', err);
