@@ -10,6 +10,7 @@ import OrderTracking from './components/OrderTracking';
 import CartModal from './components/CartModal';
 import LoginModal from './components/LoginModal';
 import DiscountPanel from './components/DiscountPanel';
+import { Analytics } from '@vercel/analytics/react';
 import { Product, ViewState, ToastMessage, ToastType, CartItem, UserProfile, DiscountCode } from './types';
 import { SALES_DATA, CATEGORY_DATA } from './constants';
 import { CheckCircle, XCircle, Info, X, Trash2, AlertTriangle } from 'lucide-react';
@@ -450,6 +451,7 @@ const App: React.FC = () => {
         />
 
         <ToastContainer toasts={toasts} />
+        <Analytics />
       </div>
     );
   }
@@ -533,6 +535,7 @@ const App: React.FC = () => {
       />
 
       <ToastContainer toasts={toasts} />
+      <Analytics />
     </div>
   );
 };
