@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../services/supabase';
+import { supabase, getAuthToken } from '../services/supabase';
 import { Product } from '../types';
 
 // Query keys for cache management
@@ -17,7 +17,7 @@ async function fetchProducts(): Promise<Product[]> {
         // Use REST API directly with environment variables
         const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
         const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
-        
+
         const response = await fetch(`${supabaseUrl}/rest/v1/products?order=created_at.desc`, {
             method: 'GET',
             headers: {
@@ -29,84 +29,178 @@ async function fetchProducts(): Promise<Product[]> {
 
         if (!response.ok) {
             const errorText = await response.text();
+            console.error('fetchProducts HTTP error:', response.status, errorText);
             throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
         const data = await response.json();
         return data;
     } catch (err) {
-        console.error('Error fetching products:', err);
-        return [];
+        throw err;
     }
 }
 
 // Fetch single product
-async function fetchProduct(id: string): Promise<Product | null> {
-    const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id)
-        .single();
+async function fetchProduct(id: string): Promise<Product> {
+    const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (error) {
-        throw new Error(error.message);
+    const response = await fetch(`${supabaseUrl}/rest/v1/products?id=eq.${id}`, {
+        method: 'GET',
+        headers: {
+            'apikey': anonKey,
+            'Authorization': `Bearer ${anonKey}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
-    return data;
+    const data = await response.json();
+    return Array.isArray(data) ? data[0] : data;
 }
 
 // Create product
 async function createProduct(product: Omit<Product, 'id' | 'created_at'>): Promise<Product> {
-    const { data, error } = await supabase
-        .from('products')
-        .insert([product])
-        .select()
-        .single();
+    try {
+        const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+        const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (error) {
-        throw new Error(error.message);
+        // Get auth token
+        const authToken = await getAuthToken();
+        const headers: HeadersInit = {
+            'apikey': anonKey,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        };
+
+        if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+        } else {
+            headers['Authorization'] = `Bearer ${anonKey}`;
+        }
+
+        const response = await fetch(`${supabaseUrl}/rest/v1/products`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                ...product,
+                target_audience: product.targetAudience // Map camelCase to snake_case
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        const newProduct = Array.isArray(data) ? data[0] : data;
+
+        return newProduct;
+    } catch (err) {
+        console.error('Error in createProduct:', err);
+        throw err;
     }
-
-    return data;
 }
 
 // Update product
 async function updateProduct({ id, ...updates }: Partial<Product> & { id: string }): Promise<Product> {
-    const { data, error } = await supabase
-        .from('products')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+    const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (error) {
-        throw new Error(error.message);
+    // Get auth token
+    const authToken = await getAuthToken();
+    const headers: HeadersInit = {
+        'apikey': anonKey,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+    };
+
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    } else {
+        headers['Authorization'] = `Bearer ${anonKey}`;
     }
 
-    return data;
+    const response = await fetch(`${supabaseUrl}/rest/v1/products?id=eq.${id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(updates)
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data[0] : data;
 }
 
 // Delete product
 async function deleteProduct(id: string): Promise<void> {
-    const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
+    const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (error) {
-        throw new Error(error.message);
+    // Get auth token
+    const authToken = await getAuthToken();
+    const headers: HeadersInit = {
+        'apikey': anonKey,
+        'Content-Type': 'application/json'
+    };
+
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    } else {
+        headers['Authorization'] = `Bearer ${anonKey}`;
+    }
+
+    const response = await fetch(`${supabaseUrl}/rest/v1/products?id=eq.${id}`, {
+        method: 'DELETE',
+        headers
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 }
 
 // Apply discount to products
 async function applyDiscount(productIds: string[], discountPercentage: number): Promise<void> {
-    const { error } = await supabase
-        .from('products')
-        .update({ discount: discountPercentage })
-        .in('id', productIds);
+    const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (error) {
-        throw new Error(error.message);
+    // Get auth token
+    const authToken = await getAuthToken();
+    const headers: HeadersInit = {
+        'apikey': anonKey,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+    };
+
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    } else {
+        headers['Authorization'] = `Bearer ${anonKey}`;
+    }
+
+    // Format: id=in.(id1,id2,id3)
+    const idsString = `(${productIds.join(',')})`;
+
+    const response = await fetch(`${supabaseUrl}/rest/v1/products?id=in.${idsString}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ discount: discountPercentage })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 }
 
@@ -154,14 +248,23 @@ export function useCreateProduct() {
 
     return useMutation({
         mutationFn: createProduct,
+        onMutate: async (productData) => {
+            console.log('DEBUG: useCreateProduct onMutate called with:', productData);
+        },
         onSuccess: (newProduct) => {
+            console.log('DEBUG: useCreateProduct onSuccess called with:', newProduct);
             // Add the new product to the cache
             queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
                 old ? [newProduct, ...old] : [newProduct]
             );
         },
         onError: (error) => {
-            console.error('Failed to create product:', error);
+            console.error('DEBUG: useCreateProduct onError called:', error);
+        },
+        onSettled: (data, error, variables) => {
+            console.log('DEBUG: useCreateProduct onSettled called:', { data, error, variables });
+            // Refetch after mutation to ensure server state
+            queryClient.invalidateQueries({ queryKey: productKeys.lists() });
         },
     });
 }

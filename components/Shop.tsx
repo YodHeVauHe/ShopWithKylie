@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Product } from '../types';
 import { ShoppingCart, Tag } from 'lucide-react';
 import StoreProductModal from './StoreProductModal';
+import heroBg from '../assets/ad348268_1fba_4020_8233_dd2eebb61de4.jpg';
 
 interface ShopProps {
   products: Product[];
@@ -37,9 +38,9 @@ const Shop: React.FC<ShopProps> = ({ products, onAddToCart }) => {
         {/* Background Image */}
         <div className="absolute inset-0 select-none">
           <img
-            src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?q=80&w=2400&auto=format&fit=crop"
+            src={heroBg}
             alt="Hero Background"
-            className="w-full h-full object-cover scale-105"
+            className="w-full h-full object-cover scale-70"
           />
           {/* Cinematic Overlay */}
           <div className="absolute inset-0 bg-neutral-950/40"></div>

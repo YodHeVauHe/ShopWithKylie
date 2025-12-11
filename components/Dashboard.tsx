@@ -24,19 +24,19 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
     }, 0);
     const avgPrice = products.length > 0 ? products.reduce((acc, curr) => acc + curr.price, 0) / products.length : 0;
     const discountedCount = products.filter(p => p.discount && p.discount > 0).length;
-    
+
     // Generate category distribution from real products
     const categoryCounts = products.reduce((acc, product) => {
       acc[product.category] = (acc[product.category] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
+
     const categoryData = Object.entries(categoryCounts).map(([name, value], index) => ({
       name,
       value,
       color: ['#4f46e5', '#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'][index % 6]
     }));
-    
+
     // Generate simulated weekly sales data based on products
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const salesData = days.map(day => {
@@ -48,14 +48,14 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
         revenue: Math.floor(baseRevenue)
       };
     });
-    
+
     // Stock level distribution
     const stockLevels = [
       { name: 'In Stock', value: products.filter(p => p.stock >= 15).length, color: '#10b981' },
       { name: 'Low Stock', value: lowStockCount, color: '#f59e0b' },
       { name: 'Out of Stock', value: outOfStockCount, color: '#ef4444' }
     ];
-    
+
     // Price distribution
     const priceRanges = [
       { name: '< 50K', count: products.filter(p => p.price < 50000).length },
@@ -63,7 +63,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
       { name: '100K-200K', count: products.filter(p => p.price >= 100000 && p.price < 200000).length },
       { name: '> 200K', count: products.filter(p => p.price >= 200000).length }
     ];
-    
+
     return {
       totalStock,
       lowStockCount,
@@ -88,39 +88,39 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard 
-          title="Total Products" 
-          value={dashboardData.totalProducts} 
+        <MetricCard
+          title="Total Products"
+          value={dashboardData.totalProducts}
           icon={<Package className="w-5 h-5" />}
-          color="text-violet-400" 
-          bg="bg-violet-500/10" 
+          color="text-violet-400"
+          bg="bg-violet-500/10"
           border="border-violet-500/20"
           subtitle="Active items"
         />
-        <MetricCard 
-          title="Total Value" 
-          value={`UGX ${dashboardData.totalValue.toLocaleString()}`} 
+        <MetricCard
+          title="Total Value"
+          value={`UGX ${dashboardData.totalValue.toLocaleString()}`}
           icon={<DollarSign className="w-5 h-5" />}
-          color="text-emerald-400" 
-          bg="bg-emerald-500/10" 
+          color="text-emerald-400"
+          bg="bg-emerald-500/10"
           border="border-emerald-500/20"
           subtitle="Inventory value"
         />
-        <MetricCard 
-          title="Low Stock Alert" 
-          value={dashboardData.lowStockCount} 
+        <MetricCard
+          title="Low Stock Alert"
+          value={dashboardData.lowStockCount}
           icon={<AlertTriangle className="w-5 h-5" />}
-          color="text-amber-400" 
-          bg="bg-amber-500/10" 
+          color="text-amber-400"
+          bg="bg-amber-500/10"
           border="border-amber-500/20"
           subtitle="Needs restock"
         />
-        <MetricCard 
-          title="Discounted Products" 
-          value={dashboardData.discountedCount} 
+        <MetricCard
+          title="Discounted Products"
+          value={dashboardData.discountedCount}
           icon={<Percent className="w-5 h-5" />}
-          color="text-cyan-400" 
-          bg="bg-cyan-500/10" 
+          color="text-cyan-400"
+          bg="bg-cyan-500/10"
           border="border-cyan-500/20"
           subtitle="On sale"
         />
@@ -131,7 +131,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
         <div className="lg:col-span-2 glass-panel p-6 rounded-3xl">
           <h3 className="text-lg font-bold text-white mb-6">Weekly Sales Performance</h3>
           <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={dashboardData.salesData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -166,7 +166,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
         <div className="glass-panel p-6 rounded-3xl">
           <h3 className="text-lg font-bold text-white mb-6">Product Categories</h3>
           <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <PieChart>
                 <Pie
                   data={dashboardData.categoryData}
@@ -201,7 +201,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
         <div className="glass-panel p-6 rounded-3xl">
           <h3 className="text-lg font-bold text-white mb-6">Stock Status Distribution</h3>
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <PieChart>
                 <Pie
                   data={dashboardData.stockLevels}
@@ -233,7 +233,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
         <div className="glass-panel p-6 rounded-3xl">
           <h3 className="text-lg font-bold text-white mb-6">Price Range Distribution</h3>
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={dashboardData.priceRanges} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <XAxis
                   dataKey="name"
@@ -261,12 +261,12 @@ const Dashboard: React.FC<DashboardProps> = ({ products }) => {
   );
 };
 
-const MetricCard = ({ title, value, icon, color, bg, border, subtitle }: { 
-  title: string, 
-  value: string | number, 
-  icon: React.ReactNode, 
-  color: string, 
-  bg: string, 
+const MetricCard = ({ title, value, icon, color, bg, border, subtitle }: {
+  title: string,
+  value: string | number,
+  icon: React.ReactNode,
+  color: string,
+  bg: string,
   border: string,
   subtitle?: string
 }) => (

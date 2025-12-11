@@ -22,18 +22,18 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
 
     try {
       console.log('Attempting login with:', email);
-      
+
       // Use REST API directly since Supabase client is hanging
       const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
       const anonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
-      
-      console.log('Environment variables:', { 
-        url: !!supabaseUrl, 
-        key: !!anonKey 
+
+      console.log('Environment variables:', {
+        url: !!supabaseUrl,
+        key: !!anonKey
       });
-      
+
       console.log('Using REST API login');
-      
+
       const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: {
@@ -46,23 +46,46 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
           password
         })
       });
-      
+
       console.log('Response status:', response.status);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Response error:', errorText);
         throw new Error(`Login failed: ${response.status} ${errorText}`);
       }
-      
+
       const sessionData = await response.json();
       console.log('REST API login successful, session data:', sessionData);
-      
-      // Skip setSession for now and just call onLogin
+
+      // Persist session to localStorage so getAuthToken can find it
+      try {
+        const projectId = supabaseUrl.replace('https://', '').split('.')[0];
+        const key = `sb-${projectId}-auth-token`;
+        localStorage.setItem(key, JSON.stringify(sessionData));
+        console.log('DEBUG: Session saved to localStorage with key:', key);
+      } catch (e) {
+        console.error('DEBUG: Failed to save session to localStorage:', e);
+      }
+
+      // Update Supabase client
+      try {
+        if (sessionData.access_token && sessionData.refresh_token) {
+          const { error } = await supabase.auth.setSession({
+            access_token: sessionData.access_token,
+            refresh_token: sessionData.refresh_token,
+          });
+          if (error) console.error('DEBUG: Failed to set Supabase client session:', error);
+          else console.log('DEBUG: Supabase client session updated');
+        }
+      } catch (e) {
+        console.error('DEBUG: Error setting Supabase session:', e);
+      }
+
       onLogin();
       setEmail('');
       setPassword('');
-      
+
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'Invalid email or password');

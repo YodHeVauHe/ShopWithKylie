@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from './services/supabase';
+import { supabase, testSupabaseConnection } from './services/supabase';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
@@ -55,7 +55,7 @@ const App: React.FC = () => {
     refetch: refetchProducts
   } = useProducts();
 
-  
+
   const createProductMutation = useCreateProduct();
   const updateProductMutation = useUpdateProduct();
   const deleteProductMutation = useDeleteProduct();
@@ -80,6 +80,12 @@ const App: React.FC = () => {
 
   // --- Auth Logic ---
   useEffect(() => {
+    testSupabaseConnection().then(result => {
+      if (!result.success) {
+        console.error('Supabase connection test failed:', result.error);
+      }
+    });
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(!!session);
       if (session) {
@@ -213,8 +219,12 @@ const App: React.FC = () => {
   };
 
   const handleSaveProduct = async (product: Product) => {
+    console.log('DEBUG: handleSaveProduct called with product:', product);
+    console.log('DEBUG: editingProduct:', editingProduct);
+
     try {
       if (editingProduct) {
+        console.log('DEBUG: Updating existing product...');
         // Update existing using mutation
         await updateProductMutation.mutateAsync({
           id: product.id,
@@ -229,8 +239,10 @@ const App: React.FC = () => {
           description: product.description,
           status: product.status
         });
+        console.log('DEBUG: Product update completed');
         addToast("Product updated successfully", ToastType.SUCCESS);
       } else {
+        console.log('DEBUG: Creating new product...');
         // Create new using mutation
         await createProductMutation.mutateAsync({
           name: product.name,
@@ -244,13 +256,15 @@ const App: React.FC = () => {
           description: product.description,
           status: product.status
         });
+        console.log('DEBUG: Product creation completed');
         addToast("Product added successfully", ToastType.SUCCESS);
       }
 
       setIsProductModalOpen(false);
+      console.log('DEBUG: Product modal closed');
       // No need to manually refetch - TanStack Query handles cache invalidation
     } catch (error) {
-      console.error('Error saving product:', error);
+      console.error('DEBUG: Error in handleSaveProduct:', error);
       addToast("Failed to save product", ToastType.ERROR);
     }
   };

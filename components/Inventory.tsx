@@ -22,7 +22,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onEditPro
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 items-center">
         <div>
           <h2 className="text-3xl font-bold text-white tracking-tight">Inventory</h2>
           <p className="text-neutral-400 mt-1">Manage stock levels and product details.</p>

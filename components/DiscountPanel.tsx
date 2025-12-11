@@ -129,7 +129,11 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
             const result = await DiscountService.getDiscountCodes();
             if (result.success && result.data) {
                 setDiscountCodes(result.data);
+            } else {
+                console.error('Failed to load discount codes:', result.error);
             }
+        } catch (error) {
+            console.error('Error in loadDiscountCodes:', error);
         } finally {
             setLoadingCodes(false);
         }
@@ -141,10 +145,8 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
             return;
         }
 
-        console.log('Starting discount code creation...');
         setIsCreatingCode(true);
         try {
-            console.log('Calling DiscountService.createDiscountCode...');
             const result = await DiscountService.createDiscountCode({
                 code: newCodeData.code || undefined,
                 discount_percentage: newCodeData.discount_percentage,
@@ -156,8 +158,6 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                 applicable_categories: newCodeData.applicable_categories.length > 0 ? newCodeData.applicable_categories : undefined,
                 created_by: userName || 'admin'
             });
-
-            console.log('Discount code creation result:', result);
 
             if (result.success) {
                 setNewCodeData({
@@ -178,10 +178,12 @@ const DiscountPanel: React.FC<DiscountPanelProps> = ({
                 addToast(result.error || 'Failed to create discount code', 'error');
             }
         } catch (error) {
-            console.error('Error creating discount code:', error);
+            console.error('Error in handleCreateDiscountCode:', error);
+            if (error instanceof Error) {
+                console.error('Error stack:', error.stack);
+            }
             addToast('Failed to create discount code', 'error');
         } finally {
-            console.log('Setting isCreatingCode to false');
             setIsCreatingCode(false);
         }
     };
